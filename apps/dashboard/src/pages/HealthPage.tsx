@@ -11,10 +11,10 @@ function formatDuration(ms: number): string {
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="card" style={{ padding: 'var(--space-4) var(--space-5)' }}>
-      <div style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-1)' }}>{label}</div>
+    <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+      <div style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-sm)' }}>{label}</div>
       <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      {hint ? <div style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>{hint}</div> : null}
+      {hint ? <div style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-xs)' }}>{hint}</div> : null}
     </div>
   );
 }
@@ -50,7 +50,7 @@ export function HealthPage() {
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 'var(--space-3)',
+            gap: 'var(--space-4)',
           }}
         >
           <Stat label="Active runs" value={String(stats.activeRuns)} hint="pending or running right now" />
