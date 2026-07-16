@@ -1,0 +1,55 @@
+/**
+ * Design tokens (frontend-design.md §11). Single theme, light only — see
+ * §11 "Scene sentence" for why dark mode is deliberately out of scope.
+ */
+:root {
+  /* Color */
+  --bg: #ffffff;
+  --surface: #f9fafb;
+  --border: #e5e7eb;
+  --ink: #111827; /* body text: 16.1:1 on --bg */
+  --ink-mut: #4b5563; /* secondary text: 7.6:1 on --bg */
+  --accent: #1d4ed8; /* primary actions, focus, selection: 6.3:1 on --bg */
+
+  /* Status — corrected for WCAG AA (>=4.5:1 with white text) */
+  --status-pending: #6b7280;
+  --status-queued: #6b7280;
+  --status-running: #1d4ed8;
+  --status-succeeded: #15803d;
+  --status-failed: #b91c1c;
+  --status-skipped: #4b5563;
+
+  /* Typography */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 0.75rem; /* 12px */
+  --text-sm: 0.875rem; /* 14px */
+  --text-base: 1rem; /* 16px */
+  --text-lg: 1.125rem; /* 18px */
+  --text-xl: 1.3125rem; /* 21px */
+  --text-2xl: 1.5rem; /* 24px */
+
+  /* Spacing — 4px base */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Radius */
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  /* Elevation — soft, low-spread; product-register depth, not drop-shadow drama */
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04), 0 1px 3px rgba(17, 24, 39, 0.06);
+  --shadow-md: 0 2px 6px rgba(17, 24, 39, 0.06), 0 8px 20px rgba(17, 24, 39, 0.08);
+
+  /* z-index */
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-modal-backdrop: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+}
