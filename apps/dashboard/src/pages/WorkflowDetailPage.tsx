@@ -7,6 +7,7 @@ import { deleteWorkflow } from '../api/workflows.js';
 import { useAuth } from '../auth/useAuth.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { ErrorState } from '../components/ErrorState.js';
+import { PageIntro } from '../components/PageIntro.js';
 import { Skeleton } from '../components/Skeleton.js';
 import { useToast } from '../components/Toast.js';
 import { VersionList } from '../components/VersionList.js';
@@ -81,37 +82,37 @@ export function WorkflowDetailPage() {
 
   return (
     <div>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 tabIndex={-1} style={{ fontSize: 'var(--text-xl)' }}>
-          {workflow.name}
-        </h1>
-        {canWrite ? (
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <button
-              type="button"
-              data-testid="trigger-button"
-              className="btn-primary"
-              disabled={!workflow.currentVersionId || trigger.isPending}
-              onClick={() => {
-                trigger.mutate(workflow.id, {
-                  onSuccess: (result) => navigate(`/runs/${result.run.id}`),
-                  onError: () => showToast('Trigger failed — try again.'),
-                });
-              }}
-            >
-              {trigger.isPending ? 'Triggering…' : 'Trigger'}
-            </button>
-            <Link to={`/workflows/${workflow.id}/edit`}>
-              <button type="button">Edit</button>
-            </Link>
-            <button type="button" data-testid="delete-button" onClick={() => setDeleteConfirmOpen(true)}>
-              Delete
-            </button>
-          </div>
-        ) : null}
-      </header>
+      <PageIntro
+        title={workflow.name}
+        action={
+          canWrite ? (
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <button
+                type="button"
+                data-testid="trigger-button"
+                className="btn-primary"
+                disabled={!workflow.currentVersionId || trigger.isPending}
+                onClick={() => {
+                  trigger.mutate(workflow.id, {
+                    onSuccess: (result) => navigate(`/runs/${result.run.id}`),
+                    onError: () => showToast('Trigger failed — try again.'),
+                  });
+                }}
+              >
+                {trigger.isPending ? 'Triggering…' : 'Trigger'}
+              </button>
+              <Link to={`/workflows/${workflow.id}/edit`}>
+                <button type="button">Edit</button>
+              </Link>
+              <button type="button" className="btn-ghost" data-testid="delete-button" onClick={() => setDeleteConfirmOpen(true)}>
+                Delete
+              </button>
+            </div>
+          ) : null
+        }
+      />
 
-      <section aria-label="Workflow graph" style={{ marginTop: 'var(--space-4)' }}>
+      <section aria-label="Workflow graph">
         {activeVersion ? <WorkflowGraph dag={activeVersion.dag} steps={{}} /> : <p>No versions yet.</p>}
       </section>
 

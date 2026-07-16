@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 /** Heading + one-line description, so a screen says what it is (frontend-ux-revision.md §4). */
-export function PageIntro({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+export function PageIntro({ title, description, action }: { title: ReactNode; description?: string; action?: ReactNode }) {
   return (
     <header style={{ marginBottom: 'var(--space-6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-4)' }}>
