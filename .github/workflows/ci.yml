@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: flowforge_test
+          POSTGRES_USER: flowforge
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flowforge"
+          --health-interval 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://flowforge:test@localhost:5432/flowforge_test
+      JWT_SECRET: ci_test_secret_do_not_use_in_production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm run test
+
+      - run: npm run build
+
+      - name: Build API Docker image
+        run: docker build -f infra/docker/Dockerfile.api -t flowforge-api:${{ github.sha }} .
+
+      - name: Build dashboard Docker image
+        run: docker build -f infra/docker/Dockerfile.dashboard -t flowforge-dashboard:${{ github.sha }} .

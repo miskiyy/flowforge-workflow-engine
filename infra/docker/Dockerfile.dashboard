@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1
+
+# Phase 0 walking skeleton: run Vite's dev server in-container so the
+# dashboard shell is reachable via `docker compose up` with no separate
+# static-hosting step yet. Revisit for a production static build in the
+# infra-hardening phase (see Task.md Phase 6).
+#
+# NOTE: VITE_API_URL is only read at dev-server/build time (Vite inlines
+# import.meta.env.* into the bundle). When Phase 6 switches this to a
+# static build + nginx, docker-compose.yml's `environment:` entry for it
+# will be silently ignored at container runtime — the value must be
+# supplied as a build ARG at image-build time instead.
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/dashboard/package.json apps/dashboard/package.json
+COPY packages/shared-types/package.json packages/shared-types/package.json
+RUN npm ci
+
+FROM node:20-alpine AS dev
+WORKDIR /app
+RUN addgroup -S app && adduser -S app -G app
+COPY --from=deps --chown=app:app /app/node_modules ./node_modules
+COPY --chown=app:app . .
+USER app
+EXPOSE 5173
+CMD ["npm", "run", "dev", "-w", "@flowforge/dashboard", "--", "--host"]

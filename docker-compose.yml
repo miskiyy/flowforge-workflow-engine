@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: flowforge
+      POSTGRES_USER: flowforge
+      POSTGRES_PASSWORD: local_dev_only
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U flowforge']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://flowforge:local_dev_only@postgres:5432/flowforge
+      # >=32 chars: config.ts enforces this length in production, and the
+      # api image runs with NODE_ENV=production (Dockerfile.api) even in
+      # this local-only compose stack.
+      JWT_SECRET: local_dev_only_insecure_do_not_use_in_prod
+      JWT_EXPIRES_IN: 15m
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.dashboard
+    environment:
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - '5173:5173'
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:

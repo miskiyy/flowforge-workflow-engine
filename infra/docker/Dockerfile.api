@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile:1
+
+# ---- deps: install once, cached across builds ----
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/dashboard/package.json apps/dashboard/package.json
+COPY packages/shared-types/package.json packages/shared-types/package.json
+RUN npm ci
+
+# ---- build: compile shared-types + api, then drop devDependencies ----
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build -w @flowforge/shared-types -w @flowforge/api \
+    && npm prune --omit=dev
+
+# ---- runtime: slim, non-root, only compiled output + prod deps ----
+FROM node:20-alpine AS runtime
+WORKDIR /app
+RUN addgroup -S app && adduser -S app -G app
+ENV NODE_ENV=production
+# npm workspaces doesn't always hoist every dependency to the root
+# node_modules — drizzle-orm resolves to apps/api/node_modules/drizzle-orm
+# specifically (verified via `npm ci` against this repo's lockfile), so the
+# workspace-local node_modules has to come along too, or Node's runtime
+# resolution silently fails on import.
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/packages/shared-types/package.json ./packages/shared-types/package.json
+COPY --from=build /app/packages/shared-types/dist ./packages/shared-types/dist
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+# tsc only emits compiled .ts -> .js; the hand-authored .sql migrations are a
+# static asset, copied separately so db:migrate can find them at runtime.
+COPY --from=build /app/apps/api/src/db/migrations ./apps/api/dist/db/migrations
+USER app
+EXPOSE 3000
+CMD ["sh", "-c", "node apps/api/dist/db/migrate.js && node apps/api/dist/server.js"]
