@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { RunSummary } from '../api/runs.js';
 import { ActionCard } from '../components/ActionCard.js';
+import { IconEdit, IconGrid, IconSparkle } from '../components/icons.js';
 import { PageIntro } from '../components/PageIntro.js';
 import type { RunDisplayStatus } from '../realtime/types.js';
 import { useRuns } from '../hooks/useRuns.js';
@@ -14,6 +15,13 @@ const RUN_STATUS_COLOR: Record<RunDisplayStatus, string> = {
   timed_out: 'var(--status-failed)',
   cancelled: 'var(--status-skipped)',
 };
+
+const ONBOARDING_STEPS = [
+  { title: 'Browse an example', description: 'Open a seeded workflow — try fan-out — to see a real DAG.' },
+  { title: 'Trigger it', description: 'Press Trigger. The run starts and you jump straight to the live view.' },
+  { title: 'Watch it run', description: 'The graph lights up as each step runs, with a live timeline beside it.' },
+  { title: 'Generate with AI', description: 'Describe a workflow in a sentence and review the draft before saving.' },
+];
 
 function relativeTime(iso: string): string {
   const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
@@ -69,29 +77,19 @@ export function OverviewPage() {
     <div>
       <PageIntro
         title="Build, run, and watch workflows"
-        description="Compose steps into a DAG, execute them, and watch each step run live. Describe a workflow in plain English or author it directly."
+        description="Compose steps into a DAG, execute them, and watch each step run live. Describe what you want in plain English and FlowForge drafts the workflow — you review every change before it's saved."
       />
 
-      <section
-        aria-label="How to test FlowForge"
-        className="card"
-        style={{ padding: 'var(--space-4) var(--space-6)', marginBottom: 'var(--space-8)' }}
-      >
-        <p style={{ fontWeight: 600, margin: '0 0 var(--space-2)' }}>New here? Try it in four steps</p>
-        <ol style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--ink-mut)', lineHeight: 1.7 }}>
-          <li>
-            Open an example workflow — <Link to="/workflows">Browse examples</Link> (try <code>fan-out</code>).
-          </li>
-          <li>
-            Press <strong>Trigger</strong>. The run starts and you jump straight to the live view.
-          </li>
-          <li>Watch the graph light up green as each step runs, with a live timeline beside it.</li>
-          <li>
-            Then try <Link to="/workflows/new?mode=ai">Generate with AI</Link> — describe a workflow in a sentence and
-            review the draft before saving.
-          </li>
-        </ol>
-      </section>
+      <div style={{ marginBottom: 'var(--space-4)' }}>
+        <ActionCard
+          primary
+          icon={IconSparkle}
+          title="Generate with AI"
+          description="Describe what you want; review the draft — added, removed, and changed steps — before saving."
+          to="/workflows/new?mode=ai"
+          cta="Generate"
+        />
+      </div>
 
       <div
         style={{
@@ -102,25 +100,71 @@ export function OverviewPage() {
         }}
       >
         <ActionCard
-          primary
-          title="Generate with AI"
-          description="Describe what you want; review the draft before saving."
-          to="/workflows/new?mode=ai"
-          cta="Generate"
-        />
-        <ActionCard
+          icon={IconEdit}
           title="Create manually"
           description="Author the DAG as JSON with an inline step reference."
           to="/workflows/new"
           cta="New"
         />
         <ActionCard
+          icon={IconGrid}
           title="Browse examples"
           description="Open a seeded workflow, run it, and watch it execute live."
           to="/workflows"
           cta="Examples"
         />
       </div>
+
+      <section
+        aria-label="How to test FlowForge"
+        className="card"
+        style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-8)' }}
+      >
+        <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 600, margin: '0 0 var(--space-1)' }}>New here? Try it in four steps</h2>
+        <p style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-sm)', margin: '0 0 var(--space-6)' }}>
+          A round trip from example to live run takes under a minute.
+        </p>
+        <ol
+          style={{
+            position: 'relative',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 'var(--space-4)',
+            margin: 0,
+            padding: 0,
+            listStyle: 'none',
+          }}
+        >
+          <li aria-hidden="true" style={{ position: 'absolute', top: 17, left: '12.5%', right: '12.5%', height: 2, background: 'var(--border)' }} />
+          {ONBOARDING_STEPS.map((step, index) => (
+            <li key={step.title} style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'var(--bg)',
+                  border: '2px solid var(--accent-subtle-border)',
+                  color: 'var(--accent)',
+                  fontWeight: 600,
+                  fontSize: 'var(--text-sm)',
+                }}
+              >
+                {index + 1}
+              </span>
+              <p style={{ fontWeight: 600, fontSize: 'var(--text-sm)', margin: 0 }}>{step.title}</p>
+              <p style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-sm)', margin: 0, lineHeight: 1.5 }}>{step.description}</p>
+            </li>
+          ))}
+        </ol>
+        <p style={{ margin: 'var(--space-5) 0 0', fontSize: 'var(--text-sm)' }}>
+          <Link to="/workflows">Browse examples</Link> · <Link to="/workflows/new?mode=ai">Generate with AI</Link>
+        </p>
+      </section>
 
       <section aria-label="Recent runs">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
