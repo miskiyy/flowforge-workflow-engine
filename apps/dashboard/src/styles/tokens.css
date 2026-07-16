@@ -10,6 +10,10 @@
   --ink: #111827; /* body text: 16.1:1 on --bg */
   --ink-mut: #4b5563; /* secondary text: 7.6:1 on --bg */
   --accent: #1d4ed8; /* primary actions, focus, selection: 6.3:1 on --bg */
+  --accent-hover: #1e40af;
+  --accent-subtle: #eff4ff; /* accent-tinted surface for the AI/featured treatment — never body bg */
+  --accent-subtle-border: #c7d9fb;
+  --surface-sunken: #f3f4f6; /* icon wells, code chips — one step darker than --surface */
 
   /* Status — corrected for WCAG AA (>=4.5:1 with white text) */
   --status-pending: #6b7280;
@@ -41,10 +45,18 @@
   /* Radius */
   --radius: 8px;
   --radius-lg: 12px;
+  --radius-full: 999px;
 
   /* Elevation — soft, low-spread; product-register depth, not drop-shadow drama */
   --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04), 0 1px 3px rgba(17, 24, 39, 0.06);
   --shadow-md: 0 2px 6px rgba(17, 24, 39, 0.06), 0 8px 20px rgba(17, 24, 39, 0.08);
+  --shadow-focus-accent: 0 0 0 3px rgba(29, 78, 216, 0.15);
+
+  /* Motion — state feedback only, 150–250ms, exponential ease-out, no bounce */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 240ms;
 
   /* z-index */
   --z-dropdown: 10;
