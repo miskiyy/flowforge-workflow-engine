@@ -1,0 +1,12 @@
+- Always write tests.
+- Reuse existing code before creating new abstractions.
+- Read affected modules before implementation.
+- Avoid unnecessary dependencies.
+- Prefer simple solutions.
+- Never bypass validation.
+- Always create a phased roadmap before coding.
+- Break work into small atomic tasks.
+- Respect module dependencies.
+- Each phase should produce a working state of the application.
+- Every phase must include testing before moving to the next phase.
+- Avoid planning features that require future refactoring.
