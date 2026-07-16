@@ -4,6 +4,7 @@ import { ApiError } from '../api/client.js';
 import { DataTable } from '../components/DataTable.js';
 import { EmptyState } from '../components/EmptyState.js';
 import { ErrorState } from '../components/ErrorState.js';
+import { PageIntro } from '../components/PageIntro.js';
 import { Skeleton } from '../components/Skeleton.js';
 import { useRuns } from '../hooks/useRuns.js';
 import type { RunDisplayStatus } from '../realtime/types.js';
@@ -55,9 +56,7 @@ export function RunsPage() {
 
   return (
     <div>
-      <h1 tabIndex={-1} style={{ fontSize: 'var(--text-xl)' }}>
-        Runs
-      </h1>
+      <PageIntro title="Runs" description="Execution history across every workflow, filterable by status and workflow." />
 
       <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
         <label>

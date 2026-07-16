@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client.js';
 import { DagEditor } from '../components/DagEditor.js';
+import { PageIntro } from '../components/PageIntro.js';
 import { ProposePanel } from '../components/ProposePanel.js';
 import { Skeleton } from '../components/Skeleton.js';
 import { StepReference } from '../components/StepReference.js';
@@ -136,14 +137,12 @@ export function WorkflowEditorPage() {
 
   return (
     <div>
-      <h1 tabIndex={-1} style={{ fontSize: 'var(--text-xl)' }}>
-        {isEdit ? `Edit ${existing?.workflow.name ?? ''}` : aiMode ? 'Generate a workflow' : 'New workflow'}
-      </h1>
-      {aiMode ? (
-        <p style={{ color: 'var(--ink-mut)', marginTop: 0 }}>
-          Describe what you want below. Review and edit the draft before saving — nothing is saved until you click Save.
-        </p>
-      ) : null}
+      <PageIntro
+        title={isEdit ? `Edit ${existing?.workflow.name ?? ''}` : aiMode ? 'Generate a workflow' : 'New workflow'}
+        {...(aiMode
+          ? { description: 'Describe what you want below. Review and edit the draft before saving — nothing is saved until you click Save.' }
+          : {})}
+      />
 
       {stale ? (
         <div data-testid="stale-banner" role="alert" style={{ padding: 'var(--space-3)', background: 'var(--surface)', border: '1px solid var(--border)' }}>

@@ -94,8 +94,8 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
 
   return (
     <main data-testid="live-run-page">
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 tabIndex={-1} title={runId} style={{ fontSize: 'var(--text-xl)' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
+        <h1 tabIndex={-1} title={runId} style={{ fontSize: 'var(--text-2xl)', margin: 0 }}>
           Run <code>{runId.slice(0, 8)}</code>
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
