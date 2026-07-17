@@ -1,0 +1,77 @@
+Phase 6 query-optimization evidence, captured directly against Postgres 16
+(the docker-compose `postgres` image) on a scratch database seeded with 300k
+`runs` rows across 20 workflows (~15k rows/workflow), 1 tenant, run via:
+
+  psql -U flowforge -d flowforge_explain -c "explain (analyze, buffers, format text) <query>"
+
+Query (matches execution/repository.ts listRuns, tenant/workflow/status
+filter, keyset-paginated newest-first, limit+1 = 21):
+
+  select id, tenant_id, workflow_id, workflow_version_id, trigger_type,
+         triggered_by, status, started_at, finished_at, created_at
+  from runs
+  where tenant_id = '11111111-1111-1111-1111-111111111111'
+    and workflow_id = '46b06970-7796-41f1-86d7-1a1d4968e4a8'
+    and status = 'failed'
+  order by created_at desc, id desc
+  limit 21;
+
+================================================================================
+BEFORE — only runs_tenant_id_idx (single column on tenant_id) exists.
+idx_runs_tenant_workflow_status dropped for this run to reproduce pre-migration
+plan shape.
+================================================================================
+
+                                                                                       QUERY PLAN
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=8053.66..8056.11 rows=21 width=120) (actual time=258.820..267.163 rows=21 loops=1)
+   Buffers: shared hit=4913
+   ->  Gather Merge  (cost=8053.66..8427.02 rows=3200 width=120) (actual time=258.815..267.152 rows=21 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=4913
+         ->  Sort  (cost=7053.64..7057.64 rows=1600 width=120) (actual time=243.783..243.787 rows=17 loops=3)
+               Sort Key: created_at DESC, id DESC
+               Sort Method: top-N heapsort  Memory: 29kB
+               Buffers: shared hit=4913
+               Worker 0:  Sort Method: top-N heapsort  Memory: 29kB
+               Worker 1:  Sort Method: top-N heapsort  Memory: 29kB
+               ->  Parallel Seq Scan on runs  (cost=0.00..7010.50 rows=1600 width=120) (actual time=0.241..240.392 rows=1243 loops=3)
+                     Filter: ((tenant_id = '11111111-1111-1111-1111-111111111111'::uuid) AND (workflow_id = '46b06970-7796-41f1-86d7-1a1d4968e4a8'::uuid) AND (status = 'failed'::text))
+                     Rows Removed by Filter: 98757
+                     Buffers: shared hit=4823
+ Planning:
+   Buffers: shared hit=120 read=1 dirtied=3
+ Planning Time: 17.681 ms
+ Execution Time: 267.855 ms
+(20 rows)
+
+================================================================================
+AFTER — idx_runs_tenant_workflow_status on runs (tenant_id, workflow_id,
+status, created_at desc) recreated, table re-ANALYZEd.
+================================================================================
+
+                                                                                      QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1.76..30.53 rows=21 width=120) (actual time=1.408..1.463 rows=21 loops=1)
+   Buffers: shared hit=31 read=3
+   ->  Incremental Sort  (cost=1.76..5192.11 rows=3788 width=120) (actual time=1.403..1.407 rows=21 loops=1)
+         Sort Key: created_at DESC, id DESC
+         Presorted Key: created_at
+         Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 27kB  Peak Memory: 27kB
+         Buffers: shared hit=31 read=3
+         ->  Index Scan using idx_runs_tenant_workflow_status on runs  (cost=0.42..5021.65 rows=3788 width=120) (actual time=0.658..0.878 rows=22 loops=1)
+               Index Cond: ((tenant_id = '11111111-1111-1111-1111-111111111111'::uuid) AND (workflow_id = '46b06970-7796-41f1-86d7-1a1d4968e4a8'::uuid) AND (status = 'failed'::text))
+               Buffers: shared hit=22 read=3
+ Planning:
+   Buffers: shared hit=155 read=1
+ Planning Time: 5.386 ms
+ Execution Time: 1.600 ms
+(14 rows)
+
+================================================================================
+Summary: Execution Time 267.855ms -> 1.600ms (~167x), shared buffer hits
+4,913 -> 34. Parallel Seq Scan over the full table + top-N sort, replaced by
+a direct Index Scan on the exact predicate plus an incremental sort that only
+has to finish what the index already started.
+================================================================================
