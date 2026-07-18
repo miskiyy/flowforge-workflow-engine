@@ -38,6 +38,12 @@ jobs:
 
       - run: npm ci
 
+      # apps/api and apps/dashboard import @flowforge/shared-types from its
+      # dist/ output (package.json's main/types), not its source — a fresh
+      # checkout has no dist/ yet, so typecheck/test fail on "cannot find
+      # module" until this runs first.
+      - run: npm run build --workspace packages/shared-types
+
       - run: npm run lint
 
       - run: npm run typecheck
