@@ -31,18 +31,22 @@ button {
   font: inherit;
   font-weight: 500;
   color: var(--ink);
-  background: var(--bg);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 8px 14px;
   cursor: pointer;
   transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease;
+    box-shadow var(--duration-fast) ease, transform var(--duration-fast) ease;
 }
 
 button:hover:not(:disabled) {
-  background: var(--surface);
-  border-color: #d1d5db;
+  background: var(--surface-high);
+  border-color: var(--ink-mut);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 button:disabled {
@@ -53,13 +57,15 @@ button:disabled {
 /* Primary action — one per view: Save, Trigger, Generate. */
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--surface-sunken);
   border-color: var(--accent);
+  font-weight: 700;
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+  box-shadow: var(--glow-accent);
 }
 
 /* Low-emphasis action — sits beside a primary/secondary button without competing (Log out, Cancel). */
@@ -70,7 +76,7 @@ button:disabled {
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--surface);
+  background: var(--surface-high);
   border-color: var(--border);
   color: var(--ink);
 }
@@ -104,11 +110,13 @@ button:disabled {
   height: 40px;
   border-radius: var(--radius);
   background: var(--surface-sunken);
+  border: 1px solid var(--border);
   color: var(--ink-mut);
 }
 
 .icon-well-accent {
   background: var(--accent-subtle);
+  border-color: var(--accent-subtle-border);
   color: var(--accent);
 }
 
@@ -117,7 +125,7 @@ textarea,
 select {
   font: inherit;
   color: inherit;
-  background: var(--bg);
+  background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 8px 10px;
@@ -126,7 +134,7 @@ select {
 input:hover,
 textarea:hover,
 select:hover {
-  border-color: #d1d5db;
+  border-color: var(--ink-mut);
 }
 
 input:focus,
@@ -149,7 +157,7 @@ a:hover {
 code {
   font-family: var(--font-mono);
   font-size: 0.9em;
-  background: var(--surface);
+  background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 1px 5px;
@@ -162,7 +170,9 @@ summary {
 /* ---- Elevation: one card treatment, applied by class instead of per-component inline borders ---- */
 
 .card {
-  background: var(--bg);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -177,7 +187,7 @@ summary {
 .action-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
-  border-color: #d1d5db;
+  border-color: var(--ink-mut);
 }
 
 /* Featured variant — the one recommended path on a page (e.g. Generate with AI). Fill, not a stripe. */
@@ -188,6 +198,7 @@ summary {
 
 .action-card-featured:hover {
   border-color: var(--accent);
+  box-shadow: var(--glow-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -199,44 +210,48 @@ summary {
   }
 }
 
+/* Subtle dotted-grid atmosphere for hero/canvas backgrounds (stitch reference's "grid-bg"). */
+.grid-bg {
+  background-image: radial-gradient(circle at 1px 1px, rgba(218, 226, 253, 0.07) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
 /* Table rows get a hover cue without touching every DataTable call site. */
 tbody tr:hover {
   background: var(--surface);
 }
 
-/* ---- Primary nav (AppShell) ---- */
+/* ---- Primary nav (AppShell sidebar) ---- */
 
 .nav-link {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 2px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border-left: 2px solid transparent;
   color: var(--ink-mut);
   font-weight: 500;
   text-decoration: none;
-  transition: color var(--duration-fast) ease;
+  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
 }
 
 .nav-link:hover {
   color: var(--ink);
+  background: var(--surface-high);
   text-decoration: none;
 }
 
 .nav-link-active {
-  color: var(--accent);
+  color: var(--ink);
   font-weight: 600;
+  background: var(--accent-subtle);
+  border-left-color: var(--accent);
 }
 
-.nav-link-active::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -17px;
-  height: 2px;
-  border-radius: var(--radius-full);
-  background: var(--accent);
+.nav-link-active:hover {
+  background: var(--accent-subtle);
 }
 
 :focus-visible {

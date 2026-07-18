@@ -11,17 +11,19 @@ describe('statusColor', () => {
     }
   });
 
-  // Regression guard: pins the WCAG AA-passing values (frontend-design.md
-  // §11). If this snapshot changes, re-check contrast before accepting it.
+  // Regression guard: pins the WCAG AA-passing values, paired with dark-ink
+  // text (var(--bg)) on the dark theme's light status fills (frontend-design.md
+  // §11). If this snapshot changes, re-check contrast against dark ink before
+  // accepting it — the darkest value (skipped, #6b7280) is ~4.8:1.
   it('pins the AA-passing status colors', () => {
     expect(STEP_STATUS_COLOR).toMatchInlineSnapshot(`
       {
-        "failed": "#b91c1c",
-        "pending": "#6b7280",
-        "queued": "#6b7280",
-        "running": "#1d4ed8",
-        "skipped": "#4b5563",
-        "succeeded": "#15803d",
+        "failed": "#ff7a7a",
+        "pending": "#8c909f",
+        "queued": "#8c909f",
+        "running": "#6d94ff",
+        "skipped": "#6b7280",
+        "succeeded": "#4ade80",
       }
     `);
   });

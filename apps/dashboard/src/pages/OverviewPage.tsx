@@ -75,12 +75,12 @@ export function OverviewPage() {
 
   return (
     <div>
-      <PageIntro
-        title="Build, run, and watch workflows"
-        description="Compose steps into a DAG, execute them, and watch each step run live. Describe what you want in plain English and FlowForge drafts the workflow — you review every change before it's saved."
-      />
+      <div className="grid-bg" style={{ borderRadius: 'var(--radius-lg)', padding: 'var(--space-6)', margin: '0 0 var(--space-4)' }}>
+        <PageIntro
+          title="Build, run, and watch workflows"
+          description="Compose steps into a DAG, execute them, and watch each step run live. Describe what you want in plain English and FlowForge drafts the workflow — you review every change before it's saved."
+        />
 
-      <div style={{ marginBottom: 'var(--space-4)' }}>
         <ActionCard
           primary
           icon={IconSparkle}

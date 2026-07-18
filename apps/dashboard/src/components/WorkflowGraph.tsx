@@ -43,7 +43,17 @@ export function WorkflowGraph({ dag, steps }: { dag: WorkflowDagDefinition; step
       </style>
       <defs>
         <filter id="ff-node-shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#111827" floodOpacity="0.12" />
+          <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.3" />
+        </filter>
+        {/* Glow per active status — the stitch reference's node-glow treatment. */}
+        <filter id="ff-node-glow-running" x="-60%" y="-60%" width="220%" height="220%">
+          <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={STEP_STATUS_COLOR.running} floodOpacity="0.55" />
+        </filter>
+        <filter id="ff-node-glow-succeeded" x="-60%" y="-60%" width="220%" height="220%">
+          <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={STEP_STATUS_COLOR.succeeded} floodOpacity="0.45" />
+        </filter>
+        <filter id="ff-node-glow-failed" x="-60%" y="-60%" width="220%" height="220%">
+          <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={STEP_STATUS_COLOR.failed} floodOpacity="0.45" />
         </filter>
       </defs>
       <g>
@@ -53,7 +63,7 @@ export function WorkflowGraph({ dag, steps }: { dag: WorkflowDagDefinition; step
             data-testid="graph-edge"
             points={edge.points.map((p) => `${p.x},${p.y}`).join(' ')}
             fill="none"
-            stroke="#cbd5e1"
+            stroke="#424754"
             strokeWidth={1.5}
           />
         ))}
@@ -61,13 +71,15 @@ export function WorkflowGraph({ dag, steps }: { dag: WorkflowDagDefinition; step
       <g>
         {layout.nodes.map((node) => {
           const status = steps[node.id]?.status ?? 'pending';
-          // Active states carry their solid status color + white text; idle and
-          // skipped read as light chips with dark ink, so a not-yet-run graph
-          // looks calm instead of a wall of heavy gray blocks.
+          // Active states carry their solid status color + glow + dark ink (the
+          // status palette is light pastels on this dark theme, so dark text
+          // reads better than white); idle and skipped read as calm dark chips.
           const active = status === 'running' || status === 'succeeded' || status === 'failed';
-          const fill = active ? STEP_STATUS_COLOR[status] : '#ffffff';
-          const textFill = active ? '#ffffff' : '#374151';
-          const stroke = active ? 'none' : status === 'skipped' ? '#9ca3af' : '#d7dbe2';
+          const fill = active ? STEP_STATUS_COLOR[status] : '#222a3d';
+          const textFill = active ? '#0b1326' : '#c2c6d6';
+          const stroke = active ? 'none' : status === 'skipped' ? '#6b7280' : '#424754';
+          const glowFilter =
+            status === 'running' ? 'url(#ff-node-glow-running)' : status === 'succeeded' ? 'url(#ff-node-glow-succeeded)' : status === 'failed' ? 'url(#ff-node-glow-failed)' : 'url(#ff-node-shadow)';
           return (
             <g
               key={node.id}
@@ -85,7 +97,7 @@ export function WorkflowGraph({ dag, steps }: { dag: WorkflowDagDefinition; step
                 stroke={stroke}
                 strokeWidth={active ? 0 : 1}
                 strokeDasharray={status === 'skipped' ? '5 3' : undefined}
-                filter="url(#ff-node-shadow)"
+                filter={glowFilter}
               />
               <text
                 x={node.width / 2}

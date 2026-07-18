@@ -11,7 +11,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
           height: 48,
           borderRadius: '50%',
           margin: '0 auto var(--space-4)',
-          background: '#fef2f2',
+          background: 'rgba(255, 122, 122, 0.12)',
           color: 'var(--status-failed)',
         }}
       >
