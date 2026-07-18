@@ -110,7 +110,7 @@ All quality assurance checks can be run from the root of the monorepo:
 
 ## 📁 Repository Structure
 
-* **`apps/api`**: Fastify server handling authentication, tenant isolation, CRUD, execution engine, and WebSockets. See [`apps/api/src/execution/README.md`](apps/api/src/execution/README.md) for the execution engine + worker pool, [`apps/api/src/realtime/README.md`](apps/api/src/realtime/README.md) for the WebSocket layer, [`apps/api/src/db/README.md`](apps/api/src/db/README.md) for the migration/index/log-storage write-up, and [`apps/api/src/ai/README.md`](apps/api/src/ai/README.md) for the NL→workflow-proposal AI subsystem (including every deviation from `Task.md`'s Phase 5 spec).
+* **`apps/api`**: Fastify server handling authentication, tenant isolation, CRUD, execution engine, WebSockets, and GraphQL. See [`apps/api/src/execution/README.md`](apps/api/src/execution/README.md) for the execution engine + worker pool, [`apps/api/src/realtime/README.md`](apps/api/src/realtime/README.md) for the WebSocket layer, [`apps/api/src/db/README.md`](apps/api/src/db/README.md) for the migration/index/log-storage write-up, [`apps/api/src/graphql/README.md`](apps/api/src/graphql/README.md) for the GraphQL layer, and [`apps/api/src/ai/README.md`](apps/api/src/ai/README.md) for the NL→workflow-proposal AI subsystem (including every deviation from `Task.md`'s Phase 5 spec).
 * **`apps/dashboard`**: React + Vite user interface for visualization and control of workflows — see the [Frontend](#-frontend) section below for the route map, state-management tiers, and accessibility hardening, and [`apps/dashboard/src/realtime/README.md`](apps/dashboard/src/realtime/README.md) for the WebSocket client (`useRunStream`).
 * **`packages/shared-types`**: TypeScript models, JSON schemas, and shared utilities shared between frontend and backend.
 * **`infra/`**: Infrastructure configurations, including Dockerfiles.
@@ -157,6 +157,14 @@ schema — the same schema object validates manually-authored workflows, the
 AI-generated drafts, and (via `ajv.compile`) is exercised directly in tests.
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for how this would map onto AWS in
 production.
+
+**RBAC** is two composed preHandlers (`auth/plugin.ts`), not one flat
+viewer/non-viewer check: `requireWrite` blocks `viewer` from any non-GET
+method, and `requireAdmin` further blocks `editor` from the small set of
+destructive or credential-rotating routes — deleting a workflow, and
+minting/revoking its webhook token (`workflows/routes.ts`'s `adminGuard`).
+Editor and admin are otherwise identical: day-to-day authoring, triggering,
+and cancelling is deliberately not admin-gated.
 
 ---
 
@@ -368,9 +376,12 @@ going in, not a shortcut discovered under deadline pressure.
   toy implementation, it's the smallest thing that's actually correct at
   this scale. The production swap-in is named in
   [`ARCHITECTURE.md`](ARCHITECTURE.md#redis--only-if-the-broker-path-is-adopted).
-- **No GraphQL.** The brief lists it as a bonus. A clean, fully-tested REST
-  API with real tenant isolation, RBAC, versioning, and rate limiting beats
-  a half-built GraphQL layer bolted on for a checkbox.
+- **GraphQL is a read+operate surface, not a 1:1 REST mirror.** `POST
+  /graphql` ([`graphql/`](apps/api/src/graphql/README.md)) shares the exact
+  same auth, tenant isolation, rate limiter, RBAC, and DAG validation as
+  REST — reused, not reimplemented — but webhook-token minting/revocation
+  stays REST-only. Bolting on every REST route as a GraphQL field for a
+  checkbox seemed worse than a smaller surface that's actually load-bearing.
 - **No distributed execution.** One process executes one run, still —
   there's no second worker service or cross-process step dispatch. *Within*
   one run, independent DAG-level steps now execute concurrently (bounded by

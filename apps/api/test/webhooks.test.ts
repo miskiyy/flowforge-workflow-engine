@@ -7,6 +7,7 @@ describe('POST /webhooks/:token', () => {
   let app: FastifyInstance;
   let tenantId: string;
   let editorToken: string;
+  let adminToken: string;
   let workflowId: string;
   let webhookToken: string;
 
@@ -17,7 +18,9 @@ describe('POST /webhooks/:token', () => {
     const tenant = await createTenant();
     tenantId = tenant.id;
     const editor = await createUser(tenantId, 'editor');
+    const admin = await createUser(tenantId, 'admin');
     editorToken = await app.jwt.sign({ tenantId, userId: editor.id, role: 'editor' });
+    adminToken = await app.jwt.sign({ tenantId, userId: admin.id, role: 'admin' });
 
     const created = await app.inject({
       method: 'POST',
@@ -27,10 +30,11 @@ describe('POST /webhooks/:token', () => {
     });
     workflowId = created.json().workflow.id;
 
+    // Minting/revoking the webhook secret is admin-only (workflows/routes.ts) — editor authors and triggers workflows, not their credentials.
     const tokenResponse = await app.inject({
       method: 'POST',
       url: `/workflows/${workflowId}/webhook-token`,
-      headers: { authorization: `Bearer ${editorToken}` },
+      headers: { authorization: `Bearer ${adminToken}` },
     });
     webhookToken = tokenResponse.json().workflow.webhookToken;
   });
@@ -79,7 +83,7 @@ describe('POST /webhooks/:token', () => {
     const revoke = await app.inject({
       method: 'DELETE',
       url: `/workflows/${workflowId}/webhook-token`,
-      headers: { authorization: `Bearer ${editorToken}` },
+      headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(revoke.json().workflow.webhookToken).toBeNull();
 

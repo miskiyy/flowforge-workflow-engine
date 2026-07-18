@@ -21,7 +21,7 @@ import {
   type WorkflowVersionRow,
 } from './repository.js';
 
-function validateCronExpression(cronExpression: string): void {
+export function validateCronExpression(cronExpression: string): void {
   if (!isValidCronExpression(cronExpression)) {
     throw new AppError(422, 'INVALID_CRON', `Invalid cron expression: "${cronExpression}"`);
   }
@@ -65,8 +65,8 @@ const ListVersionsQuery = Type.Object({
 
 const DEFAULT_PAGE_LIMIT = 20;
 
-/** Same policy as the AI proposal path (ai/propose.ts) — validateDag then checkGuards, one mechanism, not two (audit C1). */
-function validateAndGuardDag(dag: unknown): void {
+/** Same policy as the AI proposal path (ai/propose.ts) and the GraphQL layer (graphql/resolvers.ts) — validateDag then checkGuards, one mechanism, not three (audit C1). */
+export function validateAndGuardDag(dag: unknown): void {
   const validation = validateDag(dag);
   if (!validation.valid) throw new InvalidDagError(validation.errors);
 
@@ -111,6 +111,9 @@ export function registerWorkflowRoutes(app: FastifyInstance): void {
 
   const readGuard = [app.authenticate, rateLimit];
   const writeGuard = [app.authenticate, rateLimit, app.requireWrite];
+  // Destructive or credential-rotating actions (delete a workflow, mint/revoke its webhook secret)
+  // — editor can author and run workflows day-to-day, but not these.
+  const adminGuard = [app.authenticate, rateLimit, app.requireWrite, app.requireAdmin];
 
   app.post(
     '/workflows',
@@ -210,7 +213,7 @@ export function registerWorkflowRoutes(app: FastifyInstance): void {
 
   app.post(
     '/workflows/:id/webhook-token',
-    { schema: { params: WorkflowIdParams }, preHandler: writeGuard },
+    { schema: { params: WorkflowIdParams }, preHandler: adminGuard },
     async (request) => {
       const { id } = request.params as { id: string };
       const definition = await regenerateWebhookToken(request.authUser.tenantId, id);
@@ -220,7 +223,7 @@ export function registerWorkflowRoutes(app: FastifyInstance): void {
 
   app.delete(
     '/workflows/:id/webhook-token',
-    { schema: { params: WorkflowIdParams }, preHandler: writeGuard },
+    { schema: { params: WorkflowIdParams }, preHandler: adminGuard },
     async (request) => {
       const { id } = request.params as { id: string };
       const definition = await revokeWebhookToken(request.authUser.tenantId, id);
@@ -230,7 +233,7 @@ export function registerWorkflowRoutes(app: FastifyInstance): void {
 
   app.delete(
     '/workflows/:id',
-    { schema: { params: WorkflowIdParams }, preHandler: writeGuard },
+    { schema: { params: WorkflowIdParams }, preHandler: adminGuard },
     async (request, reply) => {
       const { id } = request.params as { id: string };
       await softDeleteWorkflow(request.authUser.tenantId, id);
