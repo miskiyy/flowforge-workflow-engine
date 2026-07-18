@@ -121,6 +121,10 @@ export function WorkflowGraph({ dag, steps }: { dag: WorkflowDagDefinition; step
                 r={4}
                 fill={active ? STEP_STATUS_COLOR[status] : '#6b7280'}
               />
+              {/* Status glyph — non-color channel alongside the dot (WCAG 1.4.1) */}
+              <text x={node.width - 28} y={19} fill={active ? STEP_STATUS_COLOR[status] : '#6b7280'} fontSize={10} textAnchor="end">
+                {STEP_STATUS_GLYPH[status]}
+              </text>
 
               {/* Step Type Icon Chip */}
               <g transform="translate(8, 8)">

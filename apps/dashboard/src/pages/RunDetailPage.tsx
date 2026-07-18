@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchStepLogs } from '../api/runs.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { ConnectionStatusIndicator } from '../components/ConnectionStatusIndicator.js';
-import { computeProgress, ProgressBar } from '../components/ProgressBar.js';
+import { ProgressBar } from '../components/ProgressBar.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 import { Timeline } from '../components/Timeline.js';
 import { useToast } from '../components/Toast.js';
@@ -33,17 +33,6 @@ function computeElapsedLabel(events: { ts: string }[]): string | null {
   const start = new Date(events[0]!.ts).getTime();
   const end = new Date(events[events.length - 1]!.ts).getTime();
   return formatElapsed(end - start);
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="card" style={{ padding: 'var(--space-4)' }}>
-      <p style={{ margin: '0 0 var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--ink-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        {label}
-      </p>
-      <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{value}</div>
-    </div>
-  );
 }
 
 /** http(s):// -> ws(s):// — one origin, one env var, no separate WS URL to configure. */
@@ -140,6 +129,7 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
           <span style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-sm)' }}>&gt;</span>
           <span style={{ fontWeight: 600, fontSize: 'var(--text-base)' }}>ETL-Pipeline-Alpha-9</span>
           <span
+            data-testid="run-status"
             style={{
               background: 'rgba(109, 148, 255, 0.15)',
               color: 'var(--accent)',
@@ -152,7 +142,7 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
               letterSpacing: '0.05em',
             }}
           >
-            ● Live Monitoring
+            ● {run?.status ?? 'loading'}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
@@ -174,8 +164,7 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
             </button>
           ) : null}
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--ink-mut)', fontSize: 'var(--text-sm)' }}>
-            <span style={{ color: connectionStatus === 'open' ? 'var(--status-succeeded)' : 'var(--status-failed)' }}>●</span>
-            <span>{connectionStatus === 'open' ? 'WEBSOCKET CONNECTED' : connectionStatus.toUpperCase()}</span>
+            <ConnectionStatusIndicator status={connectionStatus} />
           </div>
         </div>
       </header>
@@ -230,10 +219,10 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
               <div style={{ width: '100%' }}>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Success Rate (24h)</div>
                 <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, margin: '4px 0' }}>
-                  {stats && stats.last24h.successRate !== null ? `${Math.round(stats.last24h.successRate * 100)}%` : '—'}
+                  {stats?.last24h?.successRate != null ? `${Math.round(stats.last24h.successRate * 100)}%` : '—'}
                 </div>
                 <div style={{ background: 'var(--border)', height: 4, borderRadius: 2, overflow: 'hidden', marginTop: 8 }}>
-                  <div style={{ background: 'var(--status-succeeded)', width: stats && stats.last24h.successRate !== null ? `${stats.last24h.successRate * 100}%` : '0%', height: '100%' }} />
+                  <div style={{ background: 'var(--status-succeeded)', width: stats?.last24h?.successRate != null ? `${stats.last24h.successRate * 100}%` : '0%', height: '100%' }} />
                 </div>
               </div>
             </div>
@@ -241,9 +230,9 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
             <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ width: '100%' }}>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Runs (24h)</div>
-                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, margin: '4px 0' }}>{stats ? String(stats.last24h.total) : '—'}</div>
+                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, margin: '4px 0' }}>{stats?.last24h ? String(stats.last24h.total) : '—'}</div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-mut)' }}>
-                  {stats ? `${stats.last24h.succeeded} succeeded · ${stats.last24h.failed} failed` : ''}
+                  {stats?.last24h ? `${stats.last24h.succeeded} succeeded · ${stats.last24h.failed} failed` : ''}
                 </div>
               </div>
             </div>
@@ -259,12 +248,34 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
           >
             {/* Left Graph Panel */}
             <div className="card" style={{ padding: 'var(--space-4)', position: 'relative' }}>
+              {connectionStatus === 'reconnecting' ? (
+                <p data-testid="resync-hint" style={{ margin: '0 0 var(--space-3)', color: '#f59e0b', fontSize: 'var(--text-sm)' }}>
+                  Reconnecting — showing the last-known state until the stream resumes.
+                </p>
+              ) : null}
               {run?.status === 'pending' ? (
                 <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--ink-mut)' }} data-testid="run-pending">
                   Waiting for a worker to pick this up — it usually starts within a couple of seconds.
                 </div>
               ) : dag ? (
-                <WorkflowGraph dag={dag} steps={steps} />
+                <>
+                  <WorkflowGraph dag={dag} steps={steps} />
+                  <div style={{ marginTop: 'var(--space-4)' }}>
+                    <ProgressBar steps={steps} totalSteps={dag.steps.length} />
+                  </div>
+                  <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                    {stepKeys.map((stepKey) => (
+                      <StepRow
+                        key={stepKey}
+                        apiUrl={apiUrl}
+                        runId={runId}
+                        stepKey={stepKey}
+                        status={steps[stepKey]?.status ?? 'pending'}
+                        token={token}
+                      />
+                    ))}
+                  </div>
+                </>
               ) : (
                 <p data-testid="live-run-loading">Loading run…</p>
               )}

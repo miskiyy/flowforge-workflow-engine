@@ -1,5 +1,4 @@
 import type { DagStepDefinition, WorkflowDagDefinition } from '@flowforge/shared-types';
-import { STEP_TYPES } from '@flowforge/shared-types';
 import {
   ReactFlow,
   Background,
@@ -17,13 +16,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { dagToFlow, defaultStepFor, flowToDag, nextStepKey, type StepFlowNode } from './dagFlowSync.js';
 import { NODE_TYPES } from './StepNode.js';
 import { StepConfigPanel } from './StepConfigPanel.js';
-
-const TYPE_LABEL: Record<DagStepDefinition['type'], string> = {
-  http: 'HTTP',
-  script: 'Script',
-  delay: 'Delay',
-  condition: 'Conditional',
-};
 
 export type DagBuilderTab = 'edit' | 'json' | 'ai';
 

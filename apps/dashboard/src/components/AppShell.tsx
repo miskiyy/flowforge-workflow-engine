@@ -1,7 +1,6 @@
-import type { CSSProperties } from 'react';
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
-import { IconHealth, IconHome, IconLogout, IconRuns, IconWorkflow } from './icons.js';
+import { IconHome, IconLogout, IconRuns, IconWorkflow } from './icons.js';
 
 const NAV_ITEMS = [
   { to: '/overview', end: true, label: 'Dashboard', icon: IconHome },
@@ -11,15 +10,11 @@ const NAV_ITEMS = [
 
 const SIDEBAR_WIDTH = 260;
 
-function navLinkClassName({ isActive }: { isActive: boolean }): string {
-  return isActive ? 'nav-link nav-link-active' : 'nav-link';
-}
-
 /**
  * Left sidebar shell (mission-control layout, matching the exact styling in mockup).
  */
 export function AppShell() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div style={{ background: '#0b1326', minHeight: '100vh', color: '#dae2fd' }}>
@@ -113,6 +108,14 @@ export function AppShell() {
 
         {/* Bottom Section (Settings / Log out) */}
         <div style={{ borderTop: '1px solid #1f293d', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ padding: '0 16px', lineHeight: 1.3 }}>
+            <div data-testid="user-email" style={{ fontSize: '13px', color: '#dae2fd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.email}
+            </div>
+            <div data-testid="user-role" style={{ color: '#64748b', fontSize: '11px' }}>
+              {user?.role}
+            </div>
+          </div>
           <NavLink
             to="/settings"
             style={({ isActive }) => ({

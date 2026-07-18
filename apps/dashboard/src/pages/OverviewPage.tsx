@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import type { RunSummary } from '../api/runs.js';
 import { ActionCard } from '../components/ActionCard.js';
 import { IconEdit, IconGrid, IconSparkle } from '../components/icons.js';
-import { PageIntro } from '../components/PageIntro.js';
 import { formatDuration, Stat } from '../components/Stat.js';
 import type { RunDisplayStatus } from '../realtime/types.js';
 import { useRuns } from '../hooks/useRuns.js';
@@ -81,7 +80,7 @@ export function OverviewPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', padding: '0 var(--space-4)' }}>
       {/* Hero Welcome banner */}
       <div className="grid-bg" style={{ borderRadius: 'var(--radius-lg)', padding: 'var(--space-8) var(--space-6)', border: '1px solid var(--border)', background: 'radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.08) 0%, transparent 60%)' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: 'bold', margin: '0 0 var(--space-2)', color: '#fff', letterSpacing: '-0.02em' }}>Build, run, and watch workflows</h1>
+        <h1 tabIndex={-1} style={{ fontSize: '32px', fontWeight: 'bold', margin: '0 0 var(--space-2)', color: '#fff', letterSpacing: '-0.02em' }}>Build, run, and watch workflows</h1>
         <p style={{ color: 'var(--ink-mut)', margin: 0, maxWidth: '72ch', fontSize: '15px', lineHeight: 1.6 }}>
           Compose steps into a DAG, execute them, and watch each step run live. Describe what you want in plain English and FlowForge drafts the workflow — you review every change before it's saved.
         </p>

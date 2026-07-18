@@ -1,10 +1,9 @@
 import type { WorkflowDagDefinition } from '@flowforge/shared-types';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client.js';
 import { DagCanvas, type DagBuilderTab } from '../components/dag-builder/DagCanvas.js';
 import { DagEditor } from '../components/DagEditor.js';
-import { PageIntro } from '../components/PageIntro.js';
 import { ProposePanel } from '../components/ProposePanel.js';
 import { Skeleton } from '../components/Skeleton.js';
 import { StepReference } from '../components/StepReference.js';
@@ -23,6 +22,20 @@ interface StepError {
   path: string;
   message: string;
 }
+
+// Visible-to-screen-readers-only — the mockup's big styled inputs already
+// convey their purpose visually, but still need a real <label> for a11y.
+const visuallyHidden: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+};
 
 export function WorkflowEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -76,11 +89,6 @@ export function WorkflowEditorPage() {
     window.addEventListener('beforeunload', warnOnUnload);
     return () => window.removeEventListener('beforeunload', warnOnUnload);
   }, [dirty]);
-
-  function handleCancel() {
-    if (dirty && !window.confirm('Discard unsaved changes?')) return;
-    navigate(-1);
-  }
 
   /**
    * The one save path — the manual Save button and the AI panel's Apply
@@ -169,6 +177,7 @@ export function WorkflowEditorPage() {
     dagParseError = err instanceof Error ? err.message : 'Invalid JSON';
   }
   const canvasDag = lastValidDagRef.current;
+  const pageHeading = aiMode ? 'Generate a workflow' : isEdit ? 'Edit workflow' : 'New workflow';
 
   return (
     <div style={{ padding: '0 var(--space-4)' }}>
@@ -195,7 +204,14 @@ export function WorkflowEditorPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
             <div>
+              <h1 tabIndex={-1} style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-mut)', margin: '0 0 4px' }}>
+                {pageHeading}
+              </h1>
+              <label htmlFor="workflow-name" style={visuallyHidden}>
+                Name
+              </label>
               <input
+                id="workflow-name"
                 type="text"
                 required
                 value={name}
@@ -223,6 +239,9 @@ export function WorkflowEditorPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
             <div style={{ position: 'relative' }}>
+              <label htmlFor="workflow-cron" style={visuallyHidden}>
+                Schedule (cron expression, optional)
+              </label>
               <input
                 id="workflow-cron"
                 placeholder="Cron Expression (e.g. */5 * * * *)"
@@ -257,7 +276,7 @@ export function WorkflowEditorPage() {
                 cursor: 'pointer',
               }}
             >
-              💾 Save
+              <span aria-hidden="true">💾</span> Save
             </button>
             <button
               type="button"
