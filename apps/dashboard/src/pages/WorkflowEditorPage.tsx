@@ -1,6 +1,8 @@
+import type { WorkflowDagDefinition } from '@flowforge/shared-types';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client.js';
+import { DagCanvas } from '../components/dag-builder/DagCanvas.js';
 import { DagEditor } from '../components/DagEditor.js';
 import { PageIntro } from '../components/PageIntro.js';
 import { ProposePanel } from '../components/ProposePanel.js';
@@ -42,6 +44,11 @@ export function WorkflowEditorPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [stepErrors, setStepErrors] = useState<StepError[] | null>(null);
   const [stale, setStale] = useState(false);
+  const [viewMode, setViewMode] = useState<'visual' | 'json'>('json');
+  // Bumped whenever dagText changes from outside the canvas itself (prefill,
+  // AI Apply, Reload) so DagCanvas remounts and re-reads it — but NOT on the
+  // canvas's own edits, or every drag/click would reset node positions.
+  const [visualSyncKey, setVisualSyncKey] = useState(0);
 
   // Prefill from the loaded version once, on arrival — not on every refetch, so it doesn't clobber in-progress edits.
   useEffect(() => {
@@ -50,6 +57,7 @@ export function WorkflowEditorPage() {
       setCronExpression(existing.workflow.cronExpression ?? '');
       setDagText(JSON.stringify(existing.version.dag, null, 2));
       setBaseVersionId(existing.version.id);
+      setVisualSyncKey((k) => k + 1);
     }
   }, [existing, dirty]);
 
@@ -127,6 +135,7 @@ export function WorkflowEditorPage() {
       setCronExpression(data.workflow.cronExpression ?? '');
       setDagText(JSON.stringify(data.version.dag, null, 2));
       setBaseVersionId(data.version.id);
+      setVisualSyncKey((k) => k + 1);
     }
     setDirty(false);
     setStale(false);
@@ -144,6 +153,14 @@ export function WorkflowEditorPage() {
   }
 
   const isSaving = createWorkflow.isPending || updateWorkflow.isPending;
+
+  let parsedDag: WorkflowDagDefinition | null = null;
+  let dagParseError: string | null = null;
+  try {
+    parsedDag = JSON.parse(dagText) as WorkflowDagDefinition;
+  } catch (err) {
+    dagParseError = err instanceof Error ? err.message : 'Invalid JSON';
+  }
 
   return (
     <div>
@@ -203,6 +220,7 @@ export function WorkflowEditorPage() {
           onDraftReady={(nextDagText) => {
             setDagText(nextDagText);
             setDirty(true);
+            setVisualSyncKey((k) => k + 1);
           }}
           onApply={() => void save()}
           onStale={() => setStale(true)}
@@ -210,17 +228,52 @@ export function WorkflowEditorPage() {
 
         <details open={!aiMode} style={{ marginTop: 'var(--space-4)' }}>
           <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
-            {aiMode ? 'Advanced — edit JSON directly' : 'Workflow definition (JSON)'}
+            {aiMode ? 'Advanced — edit the workflow directly' : 'Workflow definition'}
           </summary>
           <div style={{ marginTop: 'var(--space-3)' }}>
-            <DagEditor
-              value={dagText}
-              onChange={(value) => {
-                setDagText(value);
-                setDirty(true);
-              }}
-            />
-            <StepReference />
+            <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+              <button
+                type="button"
+                className={viewMode === 'visual' ? 'btn-primary' : 'btn-ghost'}
+                onClick={() => {
+                  setVisualSyncKey((k) => k + 1);
+                  setViewMode('visual');
+                }}
+              >
+                Visual
+              </button>
+              <button type="button" className={viewMode === 'json' ? 'btn-primary' : 'btn-ghost'} onClick={() => setViewMode('json')}>
+                JSON
+              </button>
+            </div>
+
+            {viewMode === 'visual' ? (
+              dagParseError || !parsedDag ? (
+                <p role="alert" style={{ color: 'var(--status-failed)' }}>
+                  Can&apos;t show the visual builder — fix the JSON first: {dagParseError}
+                </p>
+              ) : (
+                <DagCanvas
+                  key={visualSyncKey}
+                  dag={parsedDag}
+                  onChange={(dag) => {
+                    setDagText(JSON.stringify(dag, null, 2));
+                    setDirty(true);
+                  }}
+                />
+              )
+            ) : (
+              <>
+                <DagEditor
+                  value={dagText}
+                  onChange={(value) => {
+                    setDagText(value);
+                    setDirty(true);
+                  }}
+                />
+                <StepReference />
+              </>
+            )}
           </div>
         </details>
 
