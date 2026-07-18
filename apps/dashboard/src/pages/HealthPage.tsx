@@ -1,23 +1,7 @@
 import { ErrorState } from '../components/ErrorState.js';
 import { PageIntro } from '../components/PageIntro.js';
+import { formatDuration, Stat } from '../components/Stat.js';
 import { useStats } from '../hooks/useStats.js';
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const seconds = ms / 1000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-}
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-      <div style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-sm)' }}>{label}</div>
-      <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      {hint ? <div style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-xs)' }}>{hint}</div> : null}
-    </div>
-  );
-}
 
 /** The global health panel (P10) — one server-side aggregate (GET /stats), polled, never computed by paginating /runs in the browser. */
 export function HealthPage() {

@@ -3,8 +3,10 @@ import type { RunSummary } from '../api/runs.js';
 import { ActionCard } from '../components/ActionCard.js';
 import { IconEdit, IconGrid, IconSparkle } from '../components/icons.js';
 import { PageIntro } from '../components/PageIntro.js';
+import { formatDuration, Stat } from '../components/Stat.js';
 import type { RunDisplayStatus } from '../realtime/types.js';
 import { useRuns } from '../hooks/useRuns.js';
+import { useStats } from '../hooks/useStats.js';
 import { useWorkflows } from '../hooks/useWorkflows.js';
 
 const RUN_STATUS_COLOR: Record<RunDisplayStatus, string> = {
@@ -70,8 +72,10 @@ function RecentRuns({ runs, nameById }: { runs: RunSummary[]; nameById: Map<stri
 export function OverviewPage() {
   const runsQuery = useRuns({ limit: 5 });
   const workflowsQuery = useWorkflows({ limit: 100 });
+  const statsQuery = useStats();
 
   const nameById = new Map((workflowsQuery.data?.items ?? []).map((workflow) => [workflow.id, workflow.name]));
+  const stats = statsQuery.data;
 
   return (
     <div>
@@ -90,6 +94,28 @@ export function OverviewPage() {
           cta="Generate"
         />
       </div>
+
+      {stats ? (
+        <div
+          data-testid="fleet-stats"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 'var(--space-3)',
+            marginBottom: 'var(--space-6)',
+          }}
+        >
+          <Stat label="Active runs" value={String(stats.activeRuns)} hint="pending or running right now" />
+          <Stat
+            label="Success rate (24h)"
+            value={stats.last24h.successRate === null ? '—' : `${Math.round(stats.last24h.successRate * 100)}%`}
+          />
+          <Stat
+            label="Avg duration (24h)"
+            value={stats.last24h.avgDurationMs === null ? '—' : formatDuration(stats.last24h.avgDurationMs)}
+          />
+        </div>
+      ) : null}
 
       <div
         style={{
