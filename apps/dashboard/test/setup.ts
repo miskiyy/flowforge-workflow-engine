@@ -31,6 +31,14 @@ class MemoryStorage implements Storage {
 }
 Object.defineProperty(globalThis, 'localStorage', { value: new MemoryStorage(), configurable: true, writable: true });
 
+/** jsdom has no ResizeObserver — @xyflow/react (the visual DAG builder) needs one to mount at all. */
+class NoopResizeObserver implements ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver ??= NoopResizeObserver;
+
 afterEach(() => {
   cleanup();
 });

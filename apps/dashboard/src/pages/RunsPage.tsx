@@ -7,6 +7,8 @@ import { ErrorState } from '../components/ErrorState.js';
 import { PageIntro } from '../components/PageIntro.js';
 import { Skeleton } from '../components/Skeleton.js';
 import { useRuns } from '../hooks/useRuns.js';
+import { useStats } from '../hooks/useStats.js';
+import { Stat, formatDuration as formatStatsDuration } from '../components/Stat.js';
 import type { RunDisplayStatus } from '../realtime/types.js';
 
 const STATUS_OPTIONS: RunDisplayStatus[] = ['pending', 'running', 'succeeded', 'failed', 'timed_out', 'cancelled'];
@@ -38,6 +40,7 @@ export function RunsPage() {
   );
 
   const { data, isPending, isError, error, refetch } = useRuns(query);
+  const statsQuery = useStats();
 
   function updateFilter(key: 'status' | 'workflowId', value: string) {
     const next = new URLSearchParams(searchParams);
@@ -54,9 +57,40 @@ export function RunsPage() {
     setSearchParams(next);
   }
 
+  const stats = statsQuery.data;
+
   return (
     <div>
-      <PageIntro title="Runs" description="Execution history across every workflow, filterable by status and workflow." />
+      <PageIntro title="History" description="Execution history and health across every workflow, filterable by status and workflow." />
+
+      {/* Merged Health Stats Grid */}
+      {stats !== undefined && (
+        <div
+          data-testid="stats-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 'var(--space-4)',
+            marginBottom: 'var(--space-6)',
+          }}
+        >
+          <Stat label="Active runs" value={String(stats.activeRuns)} hint="pending or running right now" />
+          <Stat
+            label="Runs finished (24h)"
+            value={String(stats.last24h.total)}
+            hint={`${stats.last24h.succeeded} succeeded · ${stats.last24h.failed} failed`}
+          />
+          <Stat
+            label="Success rate (24h)"
+            value={stats.last24h.successRate === null ? '—' : `${Math.round(stats.last24h.successRate * 100)}%`}
+            {...(stats.last24h.successRate === null ? { hint: 'no finished runs in the window yet' } : {})}
+          />
+          <Stat
+            label="Avg run duration (24h)"
+            value={stats.last24h.avgDurationMs === null ? '—' : formatStatsDuration(stats.last24h.avgDurationMs)}
+          />
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
         <label>

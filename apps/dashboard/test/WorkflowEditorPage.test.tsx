@@ -130,14 +130,16 @@ describe('WorkflowEditorPage — AI-first layout', () => {
     expect(screen.getByTestId('dag-editor-textarea')).not.toBeVisible();
   });
 
-  it('shows the JSON editor open on the plain New path', async () => {
+  it('shows the Task tab open on the plain New path', async () => {
     seedAuth('editor');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) }));
 
     renderWithProviders(<WorkflowEditorPage />, { route: '/workflows/new' });
 
     expect(screen.getByRole('heading', { name: 'New workflow' })).toBeInTheDocument();
-    expect(screen.getByTestId('dag-editor-textarea')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Task' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Click a step to edit it, or drag between the dots on two steps to set a dependency.')).toBeVisible();
+    expect(screen.getByTestId('dag-editor-textarea')).not.toBeVisible();
     expect(screen.getByTestId('step-reference')).toBeInTheDocument();
   });
 });
