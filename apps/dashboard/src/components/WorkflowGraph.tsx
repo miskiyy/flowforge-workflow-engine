@@ -28,7 +28,7 @@ export function WorkflowGraph({ dag, steps }: { dag: WorkflowDagDefinition; step
     <svg
       data-testid="workflow-graph"
       viewBox={`0 0 ${Math.max(layout.width, 1)} ${Math.max(layout.height, 1)}`}
-      width="100%"
+      style={{ width: '100%', maxWidth: Math.max(layout.width, 1), height: 'auto', maxHeight: Math.max(layout.height, 1), display: 'block', margin: '0 auto' }}
       role="img"
       aria-label={summarizeStatuses(dag, steps)}
     >
@@ -71,15 +71,29 @@ export function WorkflowGraph({ dag, steps }: { dag: WorkflowDagDefinition; step
       <g>
         {layout.nodes.map((node) => {
           const status = steps[node.id]?.status ?? 'pending';
-          // Active states carry their solid status color + glow + dark ink (the
-          // status palette is light pastels on this dark theme, so dark text
-          // reads better than white); idle and skipped read as calm dark chips.
+          const stepDef = dag.steps.find((s) => s.key === node.id);
+          const type = stepDef?.type ?? 'http';
+          let details = '';
+          if (stepDef) {
+            if (stepDef.type === 'http') {
+              details = `${stepDef.method} ${stepDef.url}`;
+            } else if (stepDef.type === 'script') {
+              details = stepDef.command;
+            } else if (stepDef.type === 'delay') {
+              details = `Duration: ${stepDef.durationMs}ms`;
+            } else if (stepDef.type === 'condition') {
+              details = `${stepDef.left} ${stepDef.op} ${stepDef.right}`;
+            }
+          }
+
+          const typeIcon = type === 'http' ? '🌐' : type === 'script' ? '⌨️' : type === 'delay' ? '⏱️' : '◇';
+
+          // Active states carry their solid status color + glow
           const active = status === 'running' || status === 'succeeded' || status === 'failed';
-          const fill = active ? STEP_STATUS_COLOR[status] : '#222a3d';
-          const textFill = active ? '#0b1326' : '#c2c6d6';
-          const stroke = active ? 'none' : status === 'skipped' ? '#6b7280' : '#424754';
+          const statusBorder = active ? STEP_STATUS_COLOR[status] : 'var(--border)';
           const glowFilter =
             status === 'running' ? 'url(#ff-node-glow-running)' : status === 'succeeded' ? 'url(#ff-node-glow-succeeded)' : status === 'failed' ? 'url(#ff-node-glow-failed)' : 'url(#ff-node-shadow)';
+
           return (
             <g
               key={node.id}
@@ -89,26 +103,53 @@ export function WorkflowGraph({ dag, steps }: { dag: WorkflowDagDefinition; step
               data-status={status}
               transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
             >
+              {/* Outer Card border/fill */}
               <rect
                 width={node.width}
                 height={node.height}
-                rx={10}
-                fill={fill}
-                stroke={stroke}
-                strokeWidth={active ? 0 : 1}
-                strokeDasharray={status === 'skipped' ? '5 3' : undefined}
+                rx={8}
+                fill="var(--glass-bg)"
+                stroke={statusBorder}
+                strokeWidth={1.5}
                 filter={glowFilter}
               />
+              
+              {/* Small status dot indicator at the top right */}
+              <circle
+                cx={node.width - 16}
+                cy={16}
+                r={4}
+                fill={active ? STEP_STATUS_COLOR[status] : '#6b7280'}
+              />
+
+              {/* Step Type Icon Chip */}
+              <g transform="translate(8, 8)">
+                <rect width={60} height={14} rx={7} fill="rgba(109, 148, 255, 0.1)" stroke="rgba(109, 148, 255, 0.3)" strokeWidth={1} />
+                <text x={6} y={10} fill="var(--accent)" fontSize={8} fontWeight="bold">
+                  {typeIcon} {type.toUpperCase()}
+                </text>
+              </g>
+
+              {/* Step Key (Title) */}
               <text
-                x={node.width / 2}
-                y={node.height / 2}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill={textFill}
-                fontSize={13}
-                fontWeight={500}
+                x={8}
+                y={32}
+                fill="#fff"
+                fontSize={11}
+                fontWeight={600}
+                fontFamily="var(--font-mono)"
               >
-                {STEP_STATUS_GLYPH[status]} {node.id}
+                {node.id}
+              </text>
+
+              {/* Step Details (Subtitle) */}
+              <text
+                x={8}
+                y={46}
+                fill="var(--ink-mut)"
+                fontSize={8}
+              >
+                {details.length > 20 ? `${details.slice(0, 20)}...` : details}
               </text>
             </g>
           );

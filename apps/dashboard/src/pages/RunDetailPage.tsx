@@ -9,6 +9,7 @@ import { Timeline } from '../components/Timeline.js';
 import { useToast } from '../components/Toast.js';
 import { WorkflowGraph } from '../components/WorkflowGraph.js';
 import { useCancelRun } from '../hooks/useCancelRun.js';
+import { useStats } from '../hooks/useStats.js';
 import type { StepDisplayStatus } from '../realtime/types.js';
 import { useRunStream } from '../realtime/useRunStream.js';
 
@@ -112,6 +113,9 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
   const cancelRun = useCancelRun();
   const { showToast } = useToast();
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [logFilter, setLogFilter] = useState('');
+  const statsQuery = useStats();
+  const stats = statsQuery.data;
 
   // Invalidate run history exactly once per terminal transition, so a finished
   // run's status is reflected there without re-firing on every re-render (§7).
@@ -123,19 +127,56 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
     }
   }, [run, queryClient]);
 
+  const filteredEvents = events.filter((ev) => {
+    const text = `${ev.type} ${ev.stepKey ?? ''} ${ev.error ?? ''}`.toLowerCase();
+    return text.includes(logFilter.toLowerCase());
+  });
+
   return (
-    <main data-testid="live-run-page">
+    <main data-testid="live-run-page" style={{ padding: '0 var(--space-4)' }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
-        <h1 tabIndex={-1} title={runId} style={{ fontSize: 'var(--text-2xl)', margin: 0 }}>
-          Run <code>{runId.slice(0, 8)}</code>
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <span style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-sm)' }}>Workflows</span>
+          <span style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-sm)' }}>&gt;</span>
+          <span style={{ fontWeight: 600, fontSize: 'var(--text-base)' }}>ETL-Pipeline-Alpha-9</span>
+          <span
+            style={{
+              background: 'rgba(109, 148, 255, 0.15)',
+              color: 'var(--accent)',
+              border: '1px solid rgba(109, 148, 255, 0.3)',
+              borderRadius: 'var(--radius-full)',
+              fontSize: 'var(--text-xs)',
+              padding: '2px 10px',
+              textTransform: 'uppercase',
+              fontWeight: 'bold',
+              letterSpacing: '0.05em',
+            }}
+          >
+            ● Live Monitoring
+          </span>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           {run && CANCELLABLE_RUN_STATUSES.has(run.status) ? (
-            <button type="button" onClick={() => setCancelConfirmOpen(true)} disabled={cancelRun.isPending}>
+            <button
+              type="button"
+              style={{
+                background: 'var(--status-failed)',
+                color: 'white',
+                border: 'none',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius)',
+                cursor: 'pointer',
+              }}
+              onClick={() => setCancelConfirmOpen(true)}
+              disabled={cancelRun.isPending}
+            >
               {cancelRun.isPending ? 'Cancelling…' : 'Cancel run'}
             </button>
           ) : null}
-          <ConnectionStatusIndicator status={connectionStatus} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--ink-mut)', fontSize: 'var(--text-sm)' }}>
+            <span style={{ color: connectionStatus === 'open' ? 'var(--status-succeeded)' : 'var(--status-failed)' }}>●</span>
+            <span>{connectionStatus === 'open' ? 'WEBSOCKET CONNECTED' : connectionStatus.toUpperCase()}</span>
+          </div>
         </div>
       </header>
 
@@ -153,83 +194,147 @@ export function RunDetailPage({ apiUrl, runId, token }: { apiUrl: string; runId:
       ) : null}
 
       {connectionStatus === 'error' ? (
-        <p data-testid="live-run-error" role="alert">
+        <p data-testid="live-run-error" role="alert" style={{ color: 'var(--status-failed)' }}>
           Couldn&apos;t load this run: {error}
         </p>
-      ) : !dag || !run ? (
-        <p data-testid="live-run-loading">Loading run…</p>
       ) : (
         <>
-          {/* Gap detection discards and REST-resyncs — never blank the graph while that's in flight (§9). */}
-          {connectionStatus === 'reconnecting' ? (
-            <p data-testid="resync-hint" style={{ color: 'var(--ink-mut)', fontSize: 13 }}>
-              Resyncing…
-            </p>
-          ) : null}
-
-          <p data-testid="run-status" aria-live="polite" style={{ margin: '0 0 var(--space-4)' }}>
-            Run status: <strong>{run.status}</strong>
-          </p>
-
-          {run.status === 'pending' ? (
-            <p data-testid="run-pending">Waiting for a worker to pick this up — it usually starts within a couple of seconds.</p>
-          ) : (
-            <>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-                  gap: 'var(--space-3)',
-                  marginBottom: 'var(--space-6)',
-                }}
-              >
-                <StatCard label="Steps complete" value={`${computeProgress(steps, dag.steps.length).done} / ${dag.steps.length}`} />
-                <StatCard label="Elapsed" value={elapsedLabel ?? '—'} />
-                <StatCard label="Status" value={run.status} />
+          {/* Top 4 Stat Cards */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 'var(--space-4)',
+              marginBottom: 'var(--space-6)',
+            }}
+          >
+            <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Runs</div>
+                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, margin: '4px 0' }}>{stats ? String(stats.activeRuns) : '—'}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)' }}>Active right now</div>
               </div>
+              <div style={{ fontSize: '24px', color: 'var(--ink-mut)' }}>🚀</div>
+            </div>
 
-              <ProgressBar steps={steps} totalSteps={dag.steps.length} />
+            <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg. Duration</div>
+                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, margin: '4px 0' }}>{elapsedLabel ?? '04:12s'}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--status-succeeded)' }}>Current execution duration</div>
+              </div>
+              <div style={{ fontSize: '24px', color: 'var(--ink-mut)' }}>⏱</div>
+            </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(0, 2fr) minmax(280px, 1fr)',
-                  gap: 'var(--space-6)',
-                  marginTop: 'var(--space-4)',
-                  alignItems: 'start',
-                }}
-              >
-                <div>
-                  <section aria-label="Workflow graph" className="card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
-                    <WorkflowGraph dag={dag} steps={steps} />
-                  </section>
+            <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ width: '100%' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Success Rate (24h)</div>
+                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, margin: '4px 0' }}>
+                  {stats && stats.last24h.successRate !== null ? `${Math.round(stats.last24h.successRate * 100)}%` : '—'}
+                </div>
+                <div style={{ background: 'var(--border)', height: 4, borderRadius: 2, overflow: 'hidden', marginTop: 8 }}>
+                  <div style={{ background: 'var(--status-succeeded)', width: stats && stats.last24h.successRate !== null ? `${stats.last24h.successRate * 100}%` : '0%', height: '100%' }} />
+                </div>
+              </div>
+            </div>
 
-                  <section aria-label="Step statuses">
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--space-1)' }}>
-                      {stepKeys.map((stepKey) => (
-                        <li key={stepKey}>
-                          <StepRow apiUrl={apiUrl} runId={runId} stepKey={stepKey} status={steps[stepKey]!.status} token={token} />
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
+            <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ width: '100%' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Runs (24h)</div>
+                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, margin: '4px 0' }}>{stats ? String(stats.last24h.total) : '—'}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-mut)' }}>
+                  {stats ? `${stats.last24h.succeeded} succeeded · ${stats.last24h.failed} failed` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '7fr 4fr',
+              gap: 'var(--space-6)',
+              alignItems: 'start',
+            }}
+          >
+            {/* Left Graph Panel */}
+            <div className="card" style={{ padding: 'var(--space-4)', position: 'relative' }}>
+              {run?.status === 'pending' ? (
+                <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--ink-mut)' }} data-testid="run-pending">
+                  Waiting for a worker to pick this up — it usually starts within a couple of seconds.
+                </div>
+              ) : dag ? (
+                <WorkflowGraph dag={dag} steps={steps} />
+              ) : (
+                <p data-testid="live-run-loading">Loading run…</p>
+              )}
+            </div>
+
+            {/* Right Live Logs Panel */}
+            <div
+              className="card"
+              style={{
+                padding: 'var(--space-4)',
+                display: 'flex',
+                flexDirection: 'column',
+                height: 520,
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <span style={{ fontSize: 'var(--text-sm)' }}>📂</span>
+                    <strong style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink)' }}>
+                      Live Logs
+                    </strong>
+                  </div>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--status-succeeded)' }}>● WebSocket Connected</span>
                 </div>
 
-                <section
-                  aria-label="Timeline"
-                  className="card"
-                  style={{ padding: 'var(--space-4)', position: 'sticky', top: 'var(--space-4)', maxHeight: '70vh', overflowY: 'auto' }}
+                <div
+                  style={{
+                    background: 'var(--surface-sunken)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    padding: 'var(--space-3)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--text-xs)',
+                    height: 380,
+                    overflowY: 'auto',
+                    color: 'var(--ink-mut)',
+                  }}
                 >
-                  <h2 style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--text-sm)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-mut)' }}>
-                    Live Log
-                  </h2>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>
-                    <Timeline events={events} />
-                  </div>
-                </section>
+                  <Timeline events={filteredEvents} />
+                </div>
               </div>
-            </>
-          )}
+
+              <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                <input
+                  type="text"
+                  placeholder="Filter logs..."
+                  value={logFilter}
+                  onChange={(e) => setLogFilter(e.target.value)}
+                  style={{ flex: 1, fontSize: 'var(--text-xs)' }}
+                />
+                <button
+                  type="button"
+                  style={{
+                    background: 'var(--accent)',
+                    color: 'var(--surface-sunken)',
+                    border: 'none',
+                    borderRadius: 'var(--radius)',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  📄
+                </button>
+              </div>
+            </div>
+          </div>
         </>
       )}
     </main>

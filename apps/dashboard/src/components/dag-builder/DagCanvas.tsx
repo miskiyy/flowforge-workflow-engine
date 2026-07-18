@@ -13,7 +13,7 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useMemo, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { dagToFlow, defaultStepFor, flowToDag, nextStepKey, type StepFlowNode } from './dagFlowSync.js';
 import { NODE_TYPES } from './StepNode.js';
 import { StepConfigPanel } from './StepConfigPanel.js';
@@ -25,22 +25,59 @@ const TYPE_LABEL: Record<DagStepDefinition['type'], string> = {
   condition: 'Conditional',
 };
 
+export type DagBuilderTab = 'edit' | 'json' | 'ai';
+
 /**
- * Visual DAG builder — drag nodes, drag between handles to set dependencies,
- * click a node to edit its fields on the right. `dag` in, `onChange(dag)`
- * out on every edit; the parent (WorkflowEditorPage) treats this exactly
- * like DagEditor's textarea, just a different input surface over the same
- * `dagText` state, so Save/AI/stale-conflict handling stays unchanged.
+ * Visual DAG builder. The canvas (left) is always visible — drag nodes,
+ * drag between handles to set dependencies. The right column is a tab
+ * strip: "Edit" (this component's own per-node config panel), "JSON" and
+ * "AI Generate" render whatever the caller passes in (DagEditor and
+ * ProposePanel), kept CSS-hidden rather than unmounted when inactive so
+ * neither panel loses its own internal state when you switch tabs.
+ *
+ * `resetToken` replaces this component's own nodes/edges from `dag` via an
+ * effect (not a `key`-remount) specifically so an external dag replacement
+ * (AI Apply, loading an existing workflow) never unmounts `jsonPanel`/
+ * `aiPanel` — they're rendered *inside* this component's tree, and a
+ * `key`-based remount would wipe ProposePanel's just-set result out from
+ * under it at the exact moment Apply calls back in to replace the dag.
  */
-export function DagCanvas({ dag, onChange }: { dag: WorkflowDagDefinition; onChange: (dag: WorkflowDagDefinition) => void }) {
-  // Re-derived from `dag` only on mount / external replacement (e.g. AI Apply,
-  // switching tabs from the JSON editor) — see the `key`-remount trick where
-  // this is used in WorkflowEditorPage, which is simpler than diffing props
-  // against local canvas state on every keystroke.
-  const initial = useMemo(() => dagToFlow(dag), [dag]);
-  const [nodes, setNodes] = useState<StepFlowNode[]>(initial.nodes);
-  const [edges, setEdges] = useState<Edge[]>(initial.edges);
+export function DagCanvas({
+  dag,
+  onChange,
+  activeTab,
+  onTabChange,
+  resetToken,
+  jsonPanel,
+  aiPanel,
+}: {
+  dag: WorkflowDagDefinition;
+  onChange: (dag: WorkflowDagDefinition) => void;
+  activeTab: DagBuilderTab;
+  onTabChange: (tab: DagBuilderTab) => void;
+  resetToken: number;
+  jsonPanel: ReactNode;
+  aiPanel: ReactNode;
+}) {
+  // Lazy initializers — dagToFlow only needs to run once, on mount.
+  const [nodes, setNodes] = useState<StepFlowNode[]>(() => dagToFlow(dag).nodes);
+  const [edges, setEdges] = useState<Edge[]>(() => dagToFlow(dag).edges);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const lastResetToken = useRef(resetToken);
+
+  useEffect(() => {
+    if (resetToken === lastResetToken.current) return;
+    lastResetToken.current = resetToken;
+    const fresh = dagToFlow(dag);
+    setNodes(fresh.nodes);
+    setEdges(fresh.edges);
+    setSelectedId(null);
+    // Only `resetToken` changing should trigger this — `dag` is read fresh
+    // from the ref-captured closure at that moment, not tracked itself, or
+    // every canvas-originated edit (which also changes `dag` via onChange)
+    // would immediately stomp its own in-progress node positions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetToken]);
 
   function commit(nextNodes: StepFlowNode[], nextEdges: Edge[]): void {
     setNodes(nextNodes);
@@ -79,6 +116,7 @@ export function DagCanvas({ dag, onChange }: { dag: WorkflowDagDefinition; onCha
     };
     commit([...nodes, newNode], edges);
     setSelectedId(key);
+    onTabChange('edit');
   }
 
   function updateSelectedStep(next: DagStepDefinition): void {
@@ -109,17 +147,52 @@ export function DagCanvas({ dag, onChange }: { dag: WorkflowDagDefinition; onCha
   const selectedStep = nodes.find((n) => n.id === selectedId)?.data.step ?? null;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 'var(--space-3)' }}>
-      <div>
-        <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
-          {STEP_TYPES.map((type) => (
-            <button key={type} type="button" onClick={() => addStep(type)}>
-              + {TYPE_LABEL[type]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      {/* Top Row: Task Selection Palette */}
+      <div className="card" style={{ padding: 'var(--space-3) var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: 'var(--ink-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tasks:</div>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <button
+              type="button"
+              onClick={() => addStep('http')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '6px', color: '#fff', fontSize: 'var(--text-xs)' }}
+            >
+              <span>🌐</span> HTTP Request
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => addStep('script')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '6px', color: '#fff', fontSize: 'var(--text-xs)' }}
+            >
+              <span>⌨️</span> Script Run
+            </button>
+            <button
+              type="button"
+              onClick={() => addStep('delay')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '6px', color: '#fff', fontSize: 'var(--text-xs)' }}
+            >
+              <span>⏱️</span> Wait Delay
+            </button>
+            <button
+              type="button"
+              onClick={() => addStep('condition')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '6px', color: '#fff', fontSize: 'var(--text-xs)' }}
+            >
+              <span>◇</span> Condition
+            </button>
+          </div>
         </div>
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-mut)', fontStyle: 'italic' }}>
+          "Build pipelines with drag and drop precision."
+        </div>
+      </div>
+
+      {/* Bottom Row: Canvas (Left) and Configuration Panel (Right) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 'var(--space-4)', alignItems: 'stretch' }}>
+        {/* Canvas Section */}
         <div
-          style={{ height: 480, border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--surface-sunken)' }}
+          style={{ height: 600, border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--surface-sunken)', position: 'relative' }}
           data-testid="dag-canvas"
         >
           <ReactFlow
@@ -129,7 +202,10 @@ export function DagCanvas({ dag, onChange }: { dag: WorkflowDagDefinition; onCha
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
             onConnect={handleConnect}
-            onNodeClick={(_, node) => setSelectedId(node.id)}
+            onNodeClick={(_, node) => {
+              setSelectedId(node.id);
+              onTabChange('edit');
+            }}
             onPaneClick={() => setSelectedId(null)}
             colorMode="dark"
             fitView
@@ -138,16 +214,75 @@ export function DagCanvas({ dag, onChange }: { dag: WorkflowDagDefinition; onCha
             <Controls />
           </ReactFlow>
         </div>
-      </div>
 
-      <div>
-        {selectedStep ? (
-          <StepConfigPanel step={selectedStep} onChange={updateSelectedStep} onDelete={deleteSelected} />
-        ) : (
-          <div className="card" style={{ padding: 'var(--space-4)', color: 'var(--ink-mut)', fontSize: 'var(--text-sm)' }}>
-            Click a step to edit it, or drag between the dots on two steps to set a dependency.
+        {/* Right Properties/Configuration Side */}
+        <div>
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 'var(--space-3)', width: '100%' }}>
+            <button
+              type="button"
+              style={{
+                flex: 1,
+                borderRadius: 'var(--radius) var(--radius) 0 0',
+                border: 'none',
+                borderBottom: activeTab === 'edit' ? '2px solid var(--accent)' : 'none',
+                background: activeTab === 'edit' ? 'var(--surface-high)' : 'transparent',
+                color: activeTab === 'edit' ? 'var(--ink)' : 'var(--ink-mut)',
+                padding: '10px 0',
+                fontWeight: activeTab === 'edit' ? 'bold' : 'normal',
+              }}
+              onClick={() => onTabChange('edit')}
+              aria-pressed={activeTab === 'edit'}
+            >
+              Task
+            </button>
+            <button
+              type="button"
+              style={{
+                flex: 1,
+                borderRadius: 'var(--radius) var(--radius) 0 0',
+                border: 'none',
+                borderBottom: activeTab === 'ai' ? '2px solid var(--accent)' : 'none',
+                background: activeTab === 'ai' ? 'var(--surface-high)' : 'transparent',
+                color: activeTab === 'ai' ? 'var(--ink)' : 'var(--ink-mut)',
+                padding: '10px 0',
+                fontWeight: activeTab === 'ai' ? 'bold' : 'normal',
+              }}
+              onClick={() => onTabChange('ai')}
+              aria-pressed={activeTab === 'ai'}
+            >
+              Generate AI
+            </button>
+            <button
+              type="button"
+              style={{
+                flex: 1,
+                borderRadius: 'var(--radius) var(--radius) 0 0',
+                border: 'none',
+                borderBottom: activeTab === 'json' ? '2px solid var(--accent)' : 'none',
+                background: activeTab === 'json' ? 'var(--surface-high)' : 'transparent',
+                color: activeTab === 'json' ? 'var(--ink)' : 'var(--ink-mut)',
+                padding: '10px 0',
+                fontWeight: activeTab === 'json' ? 'bold' : 'normal',
+              }}
+              onClick={() => onTabChange('json')}
+              aria-pressed={activeTab === 'json'}
+            >
+              JSON
+            </button>
           </div>
-        )}
+
+          <div style={{ display: activeTab === 'edit' ? 'block' : 'none' }}>
+            {selectedStep ? (
+              <StepConfigPanel step={selectedStep} onChange={updateSelectedStep} onDelete={deleteSelected} />
+            ) : (
+              <div className="card" style={{ padding: 'var(--space-4)', color: 'var(--ink-mut)', fontSize: 'var(--text-sm)' }}>
+                Click a step to edit it, or drag between the dots on two steps to set a dependency.
+              </div>
+            )}
+          </div>
+          <div style={{ display: activeTab === 'json' ? 'block' : 'none' }}>{jsonPanel}</div>
+          <div style={{ display: activeTab === 'ai' ? 'block' : 'none' }}>{aiPanel}</div>
+        </div>
       </div>
     </div>
   );

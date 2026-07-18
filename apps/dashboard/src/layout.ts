@@ -8,7 +8,7 @@ import type { WorkflowDagDefinition } from '@flowforge/shared-types';
  * adjacency list the backend topo-sorts.
  */
 export const NODE_WIDTH = 140;
-export const NODE_HEIGHT = 48;
+export const NODE_HEIGHT = 60;
 
 export interface GraphNodeLayout {
   id: string;
