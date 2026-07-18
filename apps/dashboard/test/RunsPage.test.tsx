@@ -7,6 +7,20 @@ function jsonResponse(body: unknown) {
   return { ok: true, json: () => Promise.resolve(body) };
 }
 
+/** RunsPage renders both GET /runs and GET /stats (the merged health grid) — every stub must answer both. */
+function statsResponse() {
+  return jsonResponse({
+    activeRuns: 0,
+    last24h: { total: 0, succeeded: 0, failed: 0, successRate: null, avgDurationMs: null },
+  });
+}
+
+function stubRunsAndStats(runsBody: unknown) {
+  const fetchMock = vi.fn((url: string) => Promise.resolve(url.includes('/stats') ? statsResponse() : jsonResponse(runsBody)));
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
@@ -15,27 +29,22 @@ afterEach(() => {
 describe('RunsPage', () => {
   it('renders a row per run', async () => {
     seedAuth('editor');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        jsonResponse({
-          items: [
-            {
-              id: 'run-1',
-              workflowId: 'w1',
-              workflowVersionId: 'v1',
-              triggerType: 'manual',
-              triggeredBy: 'u1',
-              status: 'succeeded',
-              startedAt: '2026-01-01T00:00:00.000Z',
-              finishedAt: '2026-01-01T00:00:05.000Z',
-              createdAt: '2026-01-01T00:00:00.000Z',
-            },
-          ],
-          nextCursor: null,
-        }),
-      ),
-    );
+    stubRunsAndStats({
+      items: [
+        {
+          id: 'run-1',
+          workflowId: 'w1',
+          workflowVersionId: 'v1',
+          triggerType: 'manual',
+          triggeredBy: 'u1',
+          status: 'succeeded',
+          startedAt: '2026-01-01T00:00:00.000Z',
+          finishedAt: '2026-01-01T00:00:05.000Z',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      nextCursor: null,
+    });
 
     renderWithProviders(<RunsPage />);
 
@@ -45,8 +54,7 @@ describe('RunsPage', () => {
 
   it('puts the status filter on the request query string', async () => {
     seedAuth('editor');
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ items: [], nextCursor: null }));
-    vi.stubGlobal('fetch', fetchMock);
+    const fetchMock = stubRunsAndStats({ items: [], nextCursor: null });
 
     renderWithProviders(<RunsPage />);
     await waitFor(() => expect(screen.getByTestId('empty-state')).toBeInTheDocument());
@@ -59,25 +67,22 @@ describe('RunsPage', () => {
 
   it('advances the cursor on Next', async () => {
     seedAuth('editor');
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({
-        items: [
-          {
-            id: 'run-1',
-            workflowId: 'w1',
-            workflowVersionId: 'v1',
-            triggerType: 'manual',
-            triggeredBy: 'u1',
-            status: 'succeeded',
-            startedAt: null,
-            finishedAt: null,
-            createdAt: '2026-01-01T00:00:00.000Z',
-          },
-        ],
-        nextCursor: 'cursor-abc',
-      }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
+    const fetchMock = stubRunsAndStats({
+      items: [
+        {
+          id: 'run-1',
+          workflowId: 'w1',
+          workflowVersionId: 'v1',
+          triggerType: 'manual',
+          triggeredBy: 'u1',
+          status: 'succeeded',
+          startedAt: null,
+          finishedAt: null,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      nextCursor: 'cursor-abc',
+    });
 
     renderWithProviders(<RunsPage />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled());
@@ -90,7 +95,7 @@ describe('RunsPage', () => {
 
   it('shows an empty state when there are no runs', async () => {
     seedAuth('editor');
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ items: [], nextCursor: null })));
+    stubRunsAndStats({ items: [], nextCursor: null });
 
     renderWithProviders(<RunsPage />);
 

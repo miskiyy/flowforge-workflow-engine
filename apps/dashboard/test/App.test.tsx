@@ -19,6 +19,13 @@ function stubAuthAndWorkflowsFetch() {
       if (url.includes('/me/tenants')) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ tenants: [] }) });
       }
+      if (url.includes('/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ activeRuns: 0, last24h: { total: 0, succeeded: 0, failed: 0, successRate: null, avgDurationMs: null } }),
+        });
+      }
       if (url.includes('/runs') || url.includes('/workflows')) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], nextCursor: null }) });
       }
@@ -84,19 +91,16 @@ describe('App routing + auth', () => {
 
   it('moves focus to the new page\'s <h1> on route change (SPA navigation strands screen-reader focus otherwise)', async () => {
     localStorage.setItem('flowforge_auth', JSON.stringify({ token: fakeJwt(CLAIMS), email: 'editor@example.com' }));
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [], nextCursor: null }) }),
-    );
+    stubAuthAndWorkflowsFetch();
 
     render(<App />);
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Build, run, and watch workflows' })).toBeInTheDocument());
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Build, run, and watch workflows' }));
 
-    fireEvent.click(screen.getByRole('link', { name: 'Runs' }));
+    fireEvent.click(screen.getByRole('link', { name: 'History' }));
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Runs' })).toBeInTheDocument());
-    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Runs' }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'History' })).toBeInTheDocument());
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'History' }));
   });
 
   it('logs out and returns to /login', async () => {
