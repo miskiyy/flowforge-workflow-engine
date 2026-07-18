@@ -68,6 +68,53 @@ describe('WorkflowEditorPage — create', () => {
     await waitFor(() => expect(screen.getByTestId('submit-error')).toBeInTheDocument());
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('omits cronExpression from the POST body when the schedule field is left blank', async () => {
+    seedAuth('editor');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          workflow: { id: 'w1', name: 'nightly-etl', currentVersionId: 'v1', cronExpression: null, createdAt: '2026-01-01T00:00:00Z' },
+          version: { id: 'v1', workflowId: 'w1', versionNumber: 1, dag: { steps: [] }, createdBy: 'u1', createdAt: '2026-01-01T00:00:00Z' },
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithProviders(<WorkflowEditorPage />, { route: '/workflows/new' });
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'nightly-etl' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/workflows', expect.objectContaining({ method: 'POST' })));
+    const postCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')!;
+    const body = JSON.parse((postCall[1] as RequestInit).body as string);
+    expect(body).not.toHaveProperty('cronExpression');
+  });
+
+  it('sends the entered cron expression on the POST body', async () => {
+    seedAuth('editor');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          workflow: { id: 'w1', name: 'nightly-etl', currentVersionId: 'v1', cronExpression: '0 9 * * *', createdAt: '2026-01-01T00:00:00Z' },
+          version: { id: 'v1', workflowId: 'w1', versionNumber: 1, dag: { steps: [] }, createdBy: 'u1', createdAt: '2026-01-01T00:00:00Z' },
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithProviders(<WorkflowEditorPage />, { route: '/workflows/new' });
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'nightly-etl' } });
+    fireEvent.change(screen.getByLabelText('Schedule (cron expression, optional)'), { target: { value: '0 9 * * *' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/workflows', expect.objectContaining({ method: 'POST' })));
+    const postCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')!;
+    const body = JSON.parse((postCall[1] as RequestInit).body as string);
+    expect(body.cronExpression).toBe('0 9 * * *');
+  });
 });
 
 describe('WorkflowEditorPage — AI-first layout', () => {
@@ -202,5 +249,49 @@ describe('WorkflowEditorPage — edit', () => {
     expect(body.baseVersionId).toBe('v1');
     // Exactly one PATCH — Apply didn't open a second save path alongside the manual one.
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1);
+  });
+
+  it('prefills the schedule field from the loaded workflow and sends null on the PATCH when cleared', async () => {
+    seedAuth('editor');
+    const dag = { steps: [{ key: 'a', type: 'delay' as const, dependsOn: [], durationMs: 1 }] };
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      if (url.endsWith('/workflows/w1') && method === 'GET') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              workflow: { id: 'w1', name: 'nightly-etl', currentVersionId: 'v1', cronExpression: '0 9 * * *', createdAt: '2026-01-01T00:00:00Z' },
+              version: { id: 'v1', workflowId: 'w1', versionNumber: 1, dag, createdBy: 'u1', createdAt: '2026-01-01T00:00:00Z' },
+            }),
+        });
+      }
+      if (url.endsWith('/workflows/w1') && method === 'PATCH') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              workflow: { id: 'w1', name: 'nightly-etl', currentVersionId: 'v2', cronExpression: null, createdAt: '2026-01-01T00:00:00Z' },
+              version: { id: 'v2', workflowId: 'w1', versionNumber: 2, dag, createdBy: 'u1', createdAt: '2026-01-02T00:00:00Z' },
+            }),
+        });
+      }
+      return Promise.reject(new Error(`Unhandled request: ${method} ${url}`));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithProviders(<WorkflowEditorPage />, { route: '/workflows/w1/edit', routePath: '/workflows/:id/edit' });
+
+    await waitFor(() => expect(screen.getByDisplayValue('0 9 * * *')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Schedule (cron expression, optional)'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/workflows/w1', expect.objectContaining({ method: 'PATCH' })),
+    );
+    const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')!;
+    const body = JSON.parse((patchCall[1] as RequestInit).body as string);
+    expect(body.cronExpression).toBeNull();
   });
 });
