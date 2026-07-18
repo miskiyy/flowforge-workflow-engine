@@ -10,9 +10,9 @@ import { useToast } from '../components/Toast.js';
 import { WorkflowGraph } from '../components/WorkflowGraph.js';
 import { useCancelRun } from '../hooks/useCancelRun.js';
 import type { StepDisplayStatus } from '../realtime/types.js';
+import { TERMINAL_RUN_STATUSES } from '../realtime/types.js';
 import { useRunStream } from '../realtime/useRunStream.js';
 
-const TERMINAL_RUN_STATUSES = new Set(['succeeded', 'failed', 'timed_out', 'cancelled']);
 const CANCELLABLE_RUN_STATUSES = new Set(['pending', 'running']);
 
 function formatElapsed(ms: number): string {

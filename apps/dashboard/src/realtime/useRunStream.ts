@@ -2,7 +2,7 @@ import type { WorkflowDagDefinition } from '@flowforge/shared-types';
 import { useEffect, useReducer, useState } from 'react';
 import { ApiError } from '../api/client.js';
 import { fetchRun, type RunSnapshot } from '../api/runs.js';
-import type { RealtimeEvent, RunDisplayStatus, StepState } from './types.js';
+import { TERMINAL_RUN_STATUSES, type RealtimeEvent, type RunDisplayStatus, type StepState } from './types.js';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting' | 'closed' | 'error';
 
@@ -16,6 +16,50 @@ export interface RunStreamState {
 export type RunStreamAction = { type: 'SNAPSHOT'; snapshot: RunSnapshot } | { type: 'EVENT'; event: RealtimeEvent };
 
 export const initialRunStreamState: RunStreamState = { run: null, dag: null, steps: {}, events: [] };
+
+/**
+ * A run opened after it already finished (shared link, page refresh, coming
+ * back later) never had its live WS events witnessed by this session — the
+ * REST snapshot's per-step start/finish timestamps are the only history
+ * that exists. Reconstructs a synthetic event list from them so the
+ * Timeline shows what happened instead of "No events yet" on a run that's
+ * long done. Skipped steps have no synthesized entry — they were never
+ * published as WS events live either (see api/realtime/events.ts).
+ */
+function synthesizeHistoricalEvents(snapshot: RunSnapshot): RealtimeEvent[] {
+  const events: RealtimeEvent[] = [];
+  let seq = 0;
+  function push(partial: Omit<RealtimeEvent, 'seq' | 'runId' | 'tenantId'>): void {
+    events.push({ ...partial, seq: seq++, runId: snapshot.run.id, tenantId: '' });
+  }
+
+  if (snapshot.run.startedAt) push({ type: 'execution.started', ts: snapshot.run.startedAt });
+
+  const orderedSteps = [...snapshot.steps].sort((a, b) => {
+    const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+    const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+    return aTime - bTime;
+  });
+  for (const step of orderedSteps) {
+    if (step.startedAt) {
+      push({ type: 'step.running', ts: step.startedAt, stepKey: step.stepKey, attemptNumber: step.attemptNumber });
+    }
+    if (step.finishedAt && (step.status === 'succeeded' || step.status === 'failed')) {
+      push({
+        type: step.status === 'succeeded' ? 'step.succeeded' : 'step.failed',
+        ts: step.finishedAt,
+        stepKey: step.stepKey,
+        ...(step.error !== null ? { error: step.error } : {}),
+      });
+    }
+  }
+
+  if (snapshot.run.finishedAt) {
+    push({ type: snapshot.run.status === 'cancelled' ? 'execution.cancelled' : 'execution.completed', ts: snapshot.run.finishedAt });
+  }
+
+  return events;
+}
 
 /**
  * Pure — no socket/timer here — so the event-application logic is testable
@@ -32,7 +76,13 @@ export function runStreamReducer(state: RunStreamState, action: RunStreamAction)
         ...(step.error !== null ? { error: step.error } : {}),
       };
     }
-    return { run: action.snapshot.run, dag: action.snapshot.dag, steps, events: state.events };
+    // Only backfill when this session never witnessed any live events —
+    // once real WS events exist, they're the authoritative history.
+    const events =
+      state.events.length === 0 && TERMINAL_RUN_STATUSES.has(action.snapshot.run.status)
+        ? synthesizeHistoricalEvents(action.snapshot)
+        : state.events;
+    return { run: action.snapshot.run, dag: action.snapshot.dag, steps, events };
   }
 
   const { event } = action;
@@ -205,6 +255,14 @@ export function useRunStream(apiUrl: string, wsUrl: string, runId: string, token
         if (cancelled) return;
         dispatch({ type: 'SNAPSHOT', snapshot });
         lastSeq = null;
+
+        // Already finished — nothing left to stream. Opening a socket here
+        // would connect successfully and sit at "Live" forever, since a
+        // terminal run's room never publishes another event.
+        if (TERMINAL_RUN_STATUSES.has(snapshot.run.status)) {
+          setConnectionStatus('closed');
+          return;
+        }
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && PERMANENT_ERROR_STATUSES.has(err.status)) {

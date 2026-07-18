@@ -38,3 +38,6 @@ export interface StepState {
 }
 
 export type RunDisplayStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'timed_out' | 'cancelled';
+
+/** A run in one of these statuses is done — nothing left to stream over the WS. */
+export const TERMINAL_RUN_STATUSES = new Set<RunDisplayStatus>(['succeeded', 'failed', 'timed_out', 'cancelled']);

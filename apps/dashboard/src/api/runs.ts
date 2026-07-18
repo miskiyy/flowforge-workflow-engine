@@ -8,10 +8,12 @@ export interface RunSnapshotStep {
   status: StepDisplayStatus;
   attemptNumber: number;
   error: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
 }
 
 export interface RunSnapshot {
-  run: { id: string; status: RunDisplayStatus };
+  run: { id: string; status: RunDisplayStatus; startedAt: string | null; finishedAt: string | null };
   steps: RunSnapshotStep[];
   dag: WorkflowDagDefinition;
 }

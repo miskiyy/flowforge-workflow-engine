@@ -10,9 +10,9 @@ function snapshotResponse(overrides: Partial<{ status: string; stepStatus: strin
     ok: true,
     json: () =>
       Promise.resolve({
-        run: { id: 'run-1', status: overrides.status ?? 'pending' },
+        run: { id: 'run-1', status: overrides.status ?? 'pending', startedAt: null, finishedAt: null },
         dag,
-        steps: [{ stepKey: 'a', status: overrides.stepStatus ?? 'pending', attemptNumber: 1, error: null }],
+        steps: [{ stepKey: 'a', status: overrides.stepStatus ?? 'pending', attemptNumber: 1, error: null, startedAt: null, finishedAt: null }],
       }),
   };
 }
@@ -250,12 +250,23 @@ describe('useRunStream (websocket client)', () => {
         await vi.advanceTimersByTimeAsync(1000); // first backoff step
       });
 
-      await vi.waitFor(() => expect(MockWebSocket.instances).toHaveLength(2));
+      // Resyncs to the correct final state, but does NOT open a second socket —
+      // the run is already done, so there's nothing left to stream (§ the "Live"
+      // badge / empty-timeline fix: a terminal resync goes straight to 'closed').
       await vi.waitFor(() => expect(result.current.steps.a?.status).toBe('succeeded'));
       expect(result.current.run?.status).toBe('succeeded');
+      expect(result.current.connectionStatus).toBe('closed');
+      expect(MockWebSocket.instances).toHaveLength(1);
+    });
 
-      act(() => MockWebSocket.latest().simulateOpen());
-      await vi.waitFor(() => expect(result.current.connectionStatus).toBe('open'));
+    it('never opens a socket at all when the run was already finished before the very first resync', async () => {
+      (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(snapshotResponse({ status: 'failed', stepStatus: 'failed' }));
+
+      const { result } = renderHook(() => useRunStream('http://api.test', 'ws://api.test', 'run-1', 'tok-123'));
+
+      await waitFor(() => expect(result.current.connectionStatus).toBe('closed'));
+      expect(result.current.run?.status).toBe('failed');
+      expect(MockWebSocket.instances).toHaveLength(0);
     });
   });
 });

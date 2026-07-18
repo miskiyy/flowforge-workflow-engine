@@ -12,11 +12,11 @@ const dag: WorkflowDagDefinition = {
 };
 
 const snapshot: RunSnapshot = {
-  run: { id: 'run-1', status: 'pending' },
+  run: { id: 'run-1', status: 'pending', startedAt: null, finishedAt: null },
   dag,
   steps: [
-    { stepKey: 'a', status: 'pending', attemptNumber: 1, error: null },
-    { stepKey: 'b', status: 'pending', attemptNumber: 1, error: null },
+    { stepKey: 'a', status: 'pending', attemptNumber: 1, error: null, startedAt: null, finishedAt: null },
+    { stepKey: 'b', status: 'pending', attemptNumber: 1, error: null, startedAt: null, finishedAt: null },
   ],
 };
 
@@ -27,7 +27,7 @@ function event(partial: Partial<RealtimeEvent> & Pick<RealtimeEvent, 'type' | 's
 describe('runStreamReducer', () => {
   it('SNAPSHOT hydrates run, dag, and per-step status from a REST resync', () => {
     const state = runStreamReducer(initialRunStreamState, { type: 'SNAPSHOT', snapshot });
-    expect(state.run).toEqual({ id: 'run-1', status: 'pending' });
+    expect(state.run).toEqual({ id: 'run-1', status: 'pending', startedAt: null, finishedAt: null });
     expect(state.dag).toBe(dag);
     expect(state.steps.a).toEqual({ stepKey: 'a', status: 'pending', attemptNumber: 1 });
   });
@@ -93,11 +93,11 @@ describe('runStreamReducer', () => {
     state = runStreamReducer(state, { type: 'EVENT', event: event({ type: 'step.failed', seq: 2, stepKey: 'a', error: 'boom' }) });
 
     const finalSnapshot: RunSnapshot = {
-      run: { id: 'run-1', status: 'failed' },
+      run: { id: 'run-1', status: 'failed', startedAt: '2026-07-15T00:00:00.000Z', finishedAt: '2026-07-15T00:00:02.000Z' },
       dag,
       steps: [
-        { stepKey: 'a', status: 'failed', attemptNumber: 1, error: 'boom' },
-        { stepKey: 'b', status: 'skipped', attemptNumber: 1, error: null },
+        { stepKey: 'a', status: 'failed', attemptNumber: 1, error: 'boom', startedAt: '2026-07-15T00:00:00.000Z', finishedAt: '2026-07-15T00:00:01.000Z' },
+        { stepKey: 'b', status: 'skipped', attemptNumber: 1, error: null, startedAt: null, finishedAt: null },
       ],
     };
     state = runStreamReducer(state, { type: 'SNAPSHOT', snapshot: finalSnapshot });
@@ -106,5 +106,45 @@ describe('runStreamReducer', () => {
     expect(state.run?.status).toBe('failed');
     // events log (the timeline) is preserved across a resync, not wiped.
     expect(state.events).toHaveLength(1);
+  });
+
+  it('backfills a synthetic timeline from step timestamps when a terminal SNAPSHOT arrives with no prior events (opening an already-finished run)', () => {
+    const finishedSnapshot: RunSnapshot = {
+      run: { id: 'run-1', status: 'succeeded', startedAt: '2026-07-15T00:00:00.000Z', finishedAt: '2026-07-15T00:00:03.000Z' },
+      dag,
+      steps: [
+        { stepKey: 'a', status: 'succeeded', attemptNumber: 1, error: null, startedAt: '2026-07-15T00:00:00.000Z', finishedAt: '2026-07-15T00:00:01.000Z' },
+        { stepKey: 'b', status: 'succeeded', attemptNumber: 1, error: null, startedAt: '2026-07-15T00:00:01.000Z', finishedAt: '2026-07-15T00:00:02.000Z' },
+      ],
+    };
+
+    const state = runStreamReducer(initialRunStreamState, { type: 'SNAPSHOT', snapshot: finishedSnapshot });
+
+    expect(state.events.map((e) => e.type)).toEqual([
+      'execution.started',
+      'step.running',
+      'step.succeeded',
+      'step.running',
+      'step.succeeded',
+      'execution.completed',
+    ]);
+    expect(state.events.map((e) => e.stepKey)).toEqual([undefined, 'a', 'a', 'b', 'b', undefined]);
+  });
+
+  it('does not backfill when a live event was already witnessed — the live log stays authoritative', () => {
+    let state = runStreamReducer(initialRunStreamState, { type: 'SNAPSHOT', snapshot });
+    state = runStreamReducer(state, { type: 'EVENT', event: event({ type: 'execution.started', seq: 1 }) });
+
+    const finishedSnapshot: RunSnapshot = {
+      run: { id: 'run-1', status: 'succeeded', startedAt: '2026-07-15T00:00:00.000Z', finishedAt: '2026-07-15T00:00:03.000Z' },
+      dag,
+      steps: [
+        { stepKey: 'a', status: 'succeeded', attemptNumber: 1, error: null, startedAt: '2026-07-15T00:00:00.000Z', finishedAt: '2026-07-15T00:00:01.000Z' },
+        { stepKey: 'b', status: 'succeeded', attemptNumber: 1, error: null, startedAt: '2026-07-15T00:00:01.000Z', finishedAt: '2026-07-15T00:00:02.000Z' },
+      ],
+    };
+    state = runStreamReducer(state, { type: 'SNAPSHOT', snapshot: finishedSnapshot });
+
+    expect(state.events.map((e) => e.type)).toEqual(['execution.started']);
   });
 });
