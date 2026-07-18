@@ -9,11 +9,11 @@ const LABEL: Record<ConnectionStatus, string> = {
 };
 
 const COLOR: Record<ConnectionStatus, string> = {
-  connecting: '#9ca3af',
-  open: '#22c55e',
+  connecting: 'var(--ink-mut)',
+  open: 'var(--status-succeeded)',
   reconnecting: '#f59e0b',
-  closed: '#6b7280',
-  error: '#ef4444',
+  closed: 'var(--status-skipped)',
+  error: 'var(--status-failed)',
 };
 
 /** aria-live="polite" — announces connection transitions without spamming per WS event (§12). */

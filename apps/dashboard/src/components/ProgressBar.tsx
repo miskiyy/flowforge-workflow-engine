@@ -30,9 +30,9 @@ export function ProgressBar({ steps, totalSteps }: { steps: Record<string, StepS
         aria-valuenow={percent}
         aria-valuemin={0}
         aria-valuemax={100}
-        style={{ background: '#e5e7eb', borderRadius: 4, height: 8, overflow: 'hidden' }}
+        style={{ background: 'var(--surface-high)', borderRadius: 4, height: 8, overflow: 'hidden' }}
       >
-        <div style={{ width: `${percent}%`, background: '#3b82f6', height: '100%' }} />
+        <div style={{ width: `${percent}%`, background: 'var(--accent)', height: '100%', transition: 'width var(--duration-base) var(--ease-out)' }} />
       </div>
       <p data-testid="progress-label">
         {done} / {total} steps complete

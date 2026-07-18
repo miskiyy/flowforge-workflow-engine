@@ -1,31 +1,45 @@
 /**
- * Design tokens (frontend-design.md §11). Single theme, light only — see
- * §11 "Scene sentence" for why dark mode is deliberately out of scope.
+ * Design tokens. Dark theme, styled after the stitch/ reference mockups
+ * (mission-control aesthetic: deep navy surfaces, glass panels, glow
+ * accents). Same token names as before so every component that already
+ * consumes var(--x) re-themes for free — only values changed here.
  */
 :root {
   /* Color */
-  --bg: #ffffff;
-  --surface: #f9fafb;
-  --border: #e5e7eb;
-  --ink: #111827; /* body text: 16.1:1 on --bg */
-  --ink-mut: #4b5563; /* secondary text: 7.6:1 on --bg */
-  --accent: #1d4ed8; /* primary actions, focus, selection: 6.3:1 on --bg */
-  --accent-hover: #1e40af;
-  --accent-subtle: #eff4ff; /* accent-tinted surface for the AI/featured treatment — never body bg */
-  --accent-subtle-border: #c7d9fb;
-  --surface-sunken: #f3f4f6; /* icon wells, code chips — one step darker than --surface */
+  --bg: #0b1326;
+  --surface: #131b2e; /* surface-container-low */
+  --border: #2d3449; /* surface-variant, used as hairline border */
+  --ink: #dae2fd; /* body text: on-surface */
+  --ink-mut: #8c909f; /* secondary text: outline */
+  --accent: #6d94ff; /* primary, darkened from #adc6ff for 4.5:1+ on dark surfaces */
+  --accent-hover: #8fadff;
+  --accent-subtle: rgba(109, 148, 255, 0.1); /* accent-tinted surface for the AI/featured treatment */
+  --accent-subtle-border: rgba(109, 148, 255, 0.3);
+  --surface-sunken: #060e20; /* icon wells, code chips — one step darker than --surface */
 
-  /* Status — corrected for WCAG AA (>=4.5:1 with white text) */
-  --status-pending: #6b7280;
-  --status-queued: #6b7280;
-  --status-running: #1d4ed8;
-  --status-succeeded: #15803d;
-  --status-failed: #b91c1c;
-  --status-skipped: #4b5563;
+  /* Extra surface steps (reference's surface-container-* scale) */
+  --surface-raised: #171f33; /* surface-container: headers, sidebar */
+  --surface-high: #222a3d; /* surface-container-high: hover states */
+  --surface-highest: #2d3449; /* surface-container-highest */
+
+  /* Glass panel + glow — the reference's signature "mission control" treatment */
+  --glass-bg: rgba(19, 27, 46, 0.72);
+  --glass-blur: 12px;
+  --glow-accent: 0 0 20px rgba(109, 148, 255, 0.18);
+  --glow-success: 0 0 10px rgba(74, 222, 128, 0.25);
+  --glow-error: 0 0 10px rgba(255, 122, 122, 0.25);
+
+  /* Status — corrected for WCAG AA (>=4.5:1 against --bg / --surface) */
+  --status-pending: #8c909f;
+  --status-queued: #8c909f;
+  --status-running: #6d94ff;
+  --status-succeeded: #4ade80;
+  --status-failed: #ff7a7a;
+  --status-skipped: #6b7280;
 
   /* Typography */
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: 'Geist Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --text-xs: 0.75rem; /* 12px */
   --text-sm: 0.875rem; /* 14px */
   --text-base: 1rem; /* 16px */
@@ -48,9 +62,9 @@
   --radius-full: 999px;
 
   /* Elevation — soft, low-spread; product-register depth, not drop-shadow drama */
-  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04), 0 1px 3px rgba(17, 24, 39, 0.06);
-  --shadow-md: 0 2px 6px rgba(17, 24, 39, 0.06), 0 8px 20px rgba(17, 24, 39, 0.08);
-  --shadow-focus-accent: 0 0 0 3px rgba(29, 78, 216, 0.15);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.24), 0 8px 20px rgba(0, 0, 0, 0.32);
+  --shadow-focus-accent: 0 0 0 3px rgba(109, 148, 255, 0.25);
 
   /* Motion — state feedback only, 150–250ms, exponential ease-out, no bounce */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);

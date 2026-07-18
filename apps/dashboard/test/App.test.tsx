@@ -41,6 +41,7 @@ describe('App routing + auth', () => {
   });
 
   it('logs in, stores the session, and lands on the overview (default landing)', async () => {
+    window.history.pushState({}, '', '/login');
     stubAuthAndWorkflowsFetch();
 
     render(<App />);
@@ -56,6 +57,7 @@ describe('App routing + auth', () => {
   });
 
   it('shows an inline error and clears the password on a failed login', async () => {
+    window.history.pushState({}, '', '/login');
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({

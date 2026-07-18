@@ -33,47 +33,77 @@ export function DagEditor({ value, onChange }: { value: string; onChange: (value
 
   return (
     <div>
-      {/* overflow stays visible (not hidden) so a keyboard focus ring on the textarea below never gets clipped by this
-          container's rounded corners — each child rounds only its own outer edge instead (§12 focus-visible audit). */}
-      <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 8 }}>
+      {/* Terminal-style chrome (stitch dag-builder.html's code-container): a title bar
+          above the editor, no behavior change underneath. */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface-sunken)' }}>
         <div
-          ref={gutterRef}
           aria-hidden="true"
           style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-sm)',
-            color: 'var(--ink-mut)',
-            padding: 'var(--space-2)',
-            textAlign: 'right',
-            userSelect: 'none',
-            overflow: 'hidden',
-            background: 'var(--surface)',
-            whiteSpace: 'pre',
-            borderRadius: '8px 0 0 8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)',
+            padding: 'var(--space-2) var(--space-3)',
+            background: 'var(--surface-raised)',
+            borderBottom: '1px solid var(--border)',
           }}
         >
-          {Array.from({ length: lineCount }, (_, index) => index + 1).join('\n')}
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--status-failed)', opacity: 0.6 }} />
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--status-pending)', opacity: 0.6 }} />
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--status-succeeded)', opacity: 0.6 }} />
+          <span
+            style={{
+              marginLeft: 'var(--space-2)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-xs)',
+              color: 'var(--ink-mut)',
+              letterSpacing: '0.05em',
+            }}
+          >
+            workflow.json
+          </span>
         </div>
-        <textarea
-          ref={textareaRef}
-          data-testid="dag-editor-textarea"
-          aria-label="Workflow DAG (JSON)"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onBlur={handleBlur}
-          onScroll={syncGutterScroll}
-          spellCheck={false}
-          rows={20}
-          style={{
-            flex: 1,
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-sm)',
-            padding: 'var(--space-2)',
-            border: 'none',
-            resize: 'vertical',
-            borderRadius: '0 8px 8px 0',
-          }}
-        />
+        {/* overflow stays visible (not hidden) so a keyboard focus ring on the textarea below never gets clipped —
+            each child rounds only its own outer edge instead (§12 focus-visible audit). */}
+        <div style={{ display: 'flex' }}>
+          <div
+            ref={gutterRef}
+            aria-hidden="true"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--ink-mut)',
+              padding: 'var(--space-2)',
+              textAlign: 'right',
+              userSelect: 'none',
+              overflow: 'hidden',
+              background: 'var(--surface-sunken)',
+              whiteSpace: 'pre',
+            }}
+          >
+            {Array.from({ length: lineCount }, (_, index) => index + 1).join('\n')}
+          </div>
+          <textarea
+            ref={textareaRef}
+            data-testid="dag-editor-textarea"
+            aria-label="Workflow DAG (JSON)"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            onBlur={handleBlur}
+            onScroll={syncGutterScroll}
+            spellCheck={false}
+            rows={20}
+            style={{
+              flex: 1,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
+              padding: 'var(--space-2)',
+              border: 'none',
+              resize: 'vertical',
+              background: 'var(--surface-sunken)',
+              color: 'var(--ink)',
+            }}
+          />
+        </div>
       </div>
       {syntaxError ? (
         <p role="alert" data-testid="dag-editor-syntax-error" style={{ color: 'var(--status-failed)' }}>
