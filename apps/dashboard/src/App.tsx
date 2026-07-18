@@ -8,9 +8,7 @@ import { ToastProvider } from './components/Toast.js';
 import { AuthProvider } from './auth/AuthProvider.js';
 import { ProtectedRoute } from './auth/ProtectedRoute.js';
 import { useAuth } from './auth/useAuth.js';
-import { DocumentationPage } from './pages/DocumentationPage.js';
 import { HealthPage } from './pages/HealthPage.js';
-import { LandingPage } from './pages/LandingPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { OverviewPage } from './pages/OverviewPage.js';
 import { RunDetailPage } from './pages/RunDetailPage.js';
@@ -28,10 +26,10 @@ function RunRoute() {
   return <RunDetailPage apiUrl={API_URL} runId={id} token={token} />;
 }
 
-/** Logged-out visitors see the marketing page; authenticated users land in the dashboard. */
+/** No marketing page — logged-out visitors go straight to sign-in; authenticated users land in the dashboard. */
 function RootRoute() {
   const { token } = useAuth();
-  return token ? <Navigate to="/overview" replace /> : <LandingPage />;
+  return <Navigate to={token ? '/overview' : '/login'} replace />;
 }
 
 function NotFoundPage() {
@@ -66,7 +64,6 @@ function AppRoutes() {
     <ErrorBoundary key={location.pathname}>
       <Routes>
         <Route path="/" element={<RootRoute />} />
-        <Route path="/docs" element={<DocumentationPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
