@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { db } from '../src/db/client.js';
 import { tenants, users, type UserRole } from '../src/db/schema.js';
 import { hashPassword } from '../src/lib/password.js';
+import { ensureMembership } from '../src/memberships/repository.js';
 
 export async function createTenant(name = `tenant-${randomUUID()}`) {
   const [tenant] = await db.insert(tenants).values({ name }).returning();
@@ -16,7 +17,14 @@ export async function createUser(tenantId: string, role: UserRole) {
   const passwordHash = await hashPassword(SEEDED_PASSWORD);
   const [user] = await db.insert(users).values({ tenantId, email, passwordHash, role }).returning();
   if (!user) throw new Error('failed to create user');
+  // Mirror real signup: a user is a member of their home tenant.
+  await ensureMembership(user.id, tenantId, role);
   return user;
+}
+
+/** Adds an existing user to a second tenant — the multi-tenant setup a switch test needs. */
+export async function addMembership(userId: string, tenantId: string, role: UserRole) {
+  await ensureMembership(userId, tenantId, role);
 }
 
 /** A minimal, schema-valid linear DAG: delay -> http. */

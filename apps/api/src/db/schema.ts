@@ -164,6 +164,66 @@ export const stepRuns = pgTable(
   ],
 );
 
+// Per-tenant API keys — the machine counterpart to a user's JWT. The presented
+// secret names its own tenant (same posture as workflow webhook tokens), so a
+// key authenticates without a login. Only the sha256 hash is stored; the
+// plaintext is shown exactly once at creation. `created_by` attributes actions
+// to a real user so version/run FKs (workflow_versions.created_by) stay valid.
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    label: text('label').notNull(),
+    // sha256(token) hex — indexable for direct lookup (bcrypt can't be, and
+    // isn't needed: the token is high-entropy random, not a chosen password).
+    keyHash: text('key_hash').notNull(),
+    // Non-secret display fragment (e.g. `ff_a1b2c3`) so the UI can identify a
+    // key in a list without ever holding the full secret.
+    prefix: text('prefix').notNull(),
+    role: text('role', { enum: USER_ROLES }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true, precision: 3 }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true, precision: 3 }),
+  },
+  (table) => [
+    uniqueIndex('api_keys_key_hash_unique').on(table.keyHash),
+    index('api_keys_tenant_id_idx').on(table.tenantId),
+    check('api_keys_role_check', sql`${table.role} in ('admin', 'editor', 'viewer')`),
+  ],
+);
+
+// A user's tenant memberships — the switch-able set of tenants a user can hold
+// a token for. `users.tenant_id` remains the home/default tenant (login issues
+// a token for it); this table is the source of truth for who may switch where.
+// Additive by design: no existing tenant-scoped query reads it — auth still
+// derives request.authUser.tenantId the same way, only the token's tenant can
+// now change via /auth/switch-tenant.
+export const memberships = pgTable(
+  'memberships',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    role: text('role', { enum: USER_ROLES }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('memberships_user_id_tenant_id_unique').on(table.userId, table.tenantId),
+    index('memberships_tenant_id_idx').on(table.tenantId),
+    check('memberships_role_check', sql`${table.role} in ('admin', 'editor', 'viewer')`),
+  ],
+);
+
 // Plain time-indexed table, not partitioned — see Task.md's locked decision
 // against "partitioning theater" for a 4-day MVP. S3/Glacier cold storage +
 // retention is the documented scale path.
