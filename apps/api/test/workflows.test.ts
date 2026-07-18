@@ -21,6 +21,7 @@ describe('workflows', () => {
 
   let tenantBId: string;
   let editorBToken: string;
+  let adminBToken: string;
 
   beforeAll(async () => {
     app = buildApp();
@@ -41,7 +42,9 @@ describe('workflows', () => {
     const tenantB = await createTenant();
     tenantBId = tenantB.id;
     const editorB = await createUser(tenantBId, 'editor');
+    const adminB = await createUser(tenantBId, 'admin');
     editorBToken = await app.jwt.sign({ tenantId: tenantBId, userId: editorB.id, role: 'editor' });
+    adminBToken = await app.jwt.sign({ tenantId: tenantBId, userId: adminB.id, role: 'admin' });
   });
 
   afterAll(async () => {
@@ -159,14 +162,14 @@ describe('workflows', () => {
   });
 
   describe('soft delete', () => {
-    it('deletes a workflow and filters it from get/list', async () => {
+    it('deletes a workflow and filters it from get/list (admin-only)', async () => {
       const created = await createWorkflowAs(editorAToken, 'to-delete');
       const workflowId = created.json().workflow.id;
 
       const del = await app.inject({
         method: 'DELETE',
         url: `/workflows/${workflowId}`,
-        headers: authed(editorAToken),
+        headers: authed(adminAToken),
       });
       expect(del.statusCode).toBe(204);
 
@@ -183,6 +186,17 @@ describe('workflows', () => {
         headers: authed(editorAToken),
       });
       expect(list.json().items).toHaveLength(0);
+    });
+
+    it('blocks an editor from deleting a workflow', async () => {
+      const created = await createWorkflowAs(editorAToken, 'to-delete-editor-blocked');
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/workflows/${created.json().workflow.id}`,
+        headers: authed(editorAToken),
+      });
+      expect(response.statusCode).toBe(403);
+      expect(response.json().error.code).toBe('FORBIDDEN');
     });
   });
 
@@ -328,10 +342,12 @@ describe('workflows', () => {
       });
       expect(patch.statusCode).toBe(404);
 
+      // adminB, not editorB — an editor now gets 403 (RBAC) before tenant
+      // isolation is even reached; admin isolates the 404 this test is about.
       const del = await app.inject({
         method: 'DELETE',
         url: `/workflows/${workflowId}`,
-        headers: authed(editorBToken),
+        headers: authed(adminBToken),
       });
       expect(del.statusCode).toBe(404);
 
@@ -439,14 +455,14 @@ describe('workflows', () => {
       expect(created.json().workflow.webhookToken).toBeNull();
     });
 
-    it('generates a new token, and regenerating replaces the old one', async () => {
+    it('generates a new token, and regenerating replaces the old one (admin-only)', async () => {
       const created = await createWorkflowAs(editorAToken, 'webhook-regen');
       const workflowId = created.json().workflow.id;
 
       const first = await app.inject({
         method: 'POST',
         url: `/workflows/${workflowId}/webhook-token`,
-        headers: authed(editorAToken),
+        headers: authed(adminAToken),
       });
       expect(first.statusCode).toBe(200);
       const firstToken = first.json().workflow.webhookToken;
@@ -455,7 +471,7 @@ describe('workflows', () => {
       const second = await app.inject({
         method: 'POST',
         url: `/workflows/${workflowId}/webhook-token`,
-        headers: authed(editorAToken),
+        headers: authed(adminAToken),
       });
       expect(second.json().workflow.webhookToken).not.toBe(firstToken);
     });
@@ -470,12 +486,23 @@ describe('workflows', () => {
       expect(response.statusCode).toBe(403);
     });
 
+    it('blocks an editor from generating a webhook token', async () => {
+      const created = await createWorkflowAs(editorAToken, 'webhook-editor-blocked');
+      const response = await app.inject({
+        method: 'POST',
+        url: `/workflows/${created.json().workflow.id}/webhook-token`,
+        headers: authed(editorAToken),
+      });
+      expect(response.statusCode).toBe(403);
+      expect(response.json().error.code).toBe('FORBIDDEN');
+    });
+
     it('404s generating a token for another tenant\'s workflow', async () => {
       const created = await createWorkflowAs(editorAToken, 'webhook-cross-tenant');
       const response = await app.inject({
         method: 'POST',
         url: `/workflows/${created.json().workflow.id}/webhook-token`,
-        headers: authed(editorBToken),
+        headers: authed(adminBToken),
       });
       expect(response.statusCode).toBe(404);
     });

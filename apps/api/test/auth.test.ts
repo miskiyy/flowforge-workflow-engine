@@ -107,4 +107,35 @@ describe('auth', () => {
     });
     expect(readResponse.statusCode).toBe(200);
   });
+
+  it('blocks an editor from an admin-only action, but allows admin', async () => {
+    const editor = await createUser(tenantId, 'editor');
+    const admin = await createUser(tenantId, 'admin');
+    const editorToken = await app.jwt.sign({ tenantId, userId: editor.id, role: 'editor' });
+    const adminToken = await app.jwt.sign({ tenantId, userId: admin.id, role: 'admin' });
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/workflows',
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { name: 'rbac-admin-fixture', dag: validDag() },
+    });
+    const workflowId = created.json().workflow.id;
+
+    // Deleting a workflow is admin-only (workflows/routes.ts) — an editor can author and run it, not destroy it.
+    const editorDelete = await app.inject({
+      method: 'DELETE',
+      url: `/workflows/${workflowId}`,
+      headers: { authorization: `Bearer ${editorToken}` },
+    });
+    expect(editorDelete.statusCode).toBe(403);
+    expect(editorDelete.json().error.code).toBe('FORBIDDEN');
+
+    const adminDelete = await app.inject({
+      method: 'DELETE',
+      url: `/workflows/${workflowId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(adminDelete.statusCode).toBe(204);
+  });
 });

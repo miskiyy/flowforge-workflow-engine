@@ -1,4 +1,5 @@
 import type { FastifyError, FastifyInstance } from 'fastify';
+import { GraphQLError } from 'graphql';
 
 export class AppError extends Error {
   readonly statusCode: number;
@@ -62,9 +63,20 @@ function envelope(code: string, message: string, details?: unknown) {
 
 /** Standard `{ error: { code, message, details? } }` envelope for every error response. */
 export function registerErrorHandler(app: FastifyInstance): void {
-  app.setErrorHandler((error: FastifyError | AppError, request, reply) => {
+  app.setErrorHandler((error: FastifyError | AppError | GraphQLError, request, reply) => {
     if (error instanceof AppError) {
       reply.status(error.statusCode).send(envelope(error.code, error.message, error.details));
+      return;
+    }
+
+    // mercurius's `context` builder (graphql/routes.ts) throws GraphQLError for
+    // auth/rate-limit failures — those happen before GraphQL execution starts,
+    // so mercurius never gets a chance to format them; they land here instead,
+    // carrying the same { code, statusCode } shape resolvers.ts's toGraphQLError sets.
+    if (error instanceof GraphQLError) {
+      const extensions = error.extensions as { code?: string; statusCode?: number } | undefined;
+      const statusCode = extensions?.statusCode ?? 500;
+      reply.status(statusCode).send(envelope(extensions?.code ?? 'INTERNAL_ERROR', error.message));
       return;
     }
 

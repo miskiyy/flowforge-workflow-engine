@@ -7,6 +7,7 @@ import type { DagProposer } from './ai/provider.js';
 import { registerAuth } from './auth/plugin.js';
 import { registerAuthRoutes } from './auth/routes.js';
 import { registerExecutionRoutes } from './execution/routes.js';
+import { registerGraphqlRoutes } from './graphql/routes.js';
 import { registerErrorHandler } from './lib/errors.js';
 import { registerRealtimeGateway } from './realtime/gateway.js';
 import { registerWebhookRoutes } from './webhooks/routes.js';
@@ -43,6 +44,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   registerAuthRoutes(app);
   registerWorkflowRoutes(app);
   registerExecutionRoutes(app);
+  registerGraphqlRoutes(app);
   registerWebhookRoutes(app);
   registerRealtimeGateway(app);
   // The one line outside ai/ that knows it exists — delete src/ai/ and everything above still works.
