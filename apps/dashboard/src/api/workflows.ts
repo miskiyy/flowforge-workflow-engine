@@ -64,6 +64,8 @@ export interface UpdateWorkflowInput {
   dag?: WorkflowDagDefinition;
   /** Optimistic-concurrency token — omit for a blind overwrite, include to get a 409 BASE_VERSION_STALE on conflict (§7). */
   baseVersionId?: string;
+  /** Omit to leave unchanged; null clears the schedule (PATCH /workflows/:id accepts both). */
+  cronExpression?: string | null;
 }
 
 export function updateWorkflow(

@@ -5,19 +5,22 @@ import type { StepDisplayStatus } from './realtime/types.js';
  * WorkflowGraph so a node's badge and its graph fill never disagree.
  * `queued` (WS-only, not a persisted step_runs status) shares pending's
  * color in the graph — Task.md's node-coloring spec names five colors
- * (pending/running/succeeded/failed/skipped), not six.
+ * (pending/running/succeeded/failed/skipped), not six. Mirrors the
+ * `--status-*` tokens in tokens.css (kept in sync manually, same as the
+ * API/dashboard type duplication elsewhere).
  *
- * Values corrected for WCAG AA (frontend-design.md §11): the previous
- * succeeded/pending fills rendered white text at ~2.1:1 and ~2.2:1 against
- * the required 4.5:1. All values below are >=4.5:1 with white text.
+ * Values corrected for WCAG AA (frontend-design.md §11): these are light
+ * pastel fills (the dark theme's glow/status palette), so badge and graph
+ * text pairs with them as dark ink (var(--bg)), not white — all five are
+ * >=4.5:1 against a dark-ink foreground.
  */
 export const STEP_STATUS_COLOR: Record<StepDisplayStatus, string> = {
-  pending: '#6b7280',
-  queued: '#6b7280',
-  running: '#1d4ed8',
-  succeeded: '#15803d',
-  failed: '#b91c1c',
-  skipped: '#4b5563',
+  pending: '#8c909f',
+  queued: '#8c909f',
+  running: '#6d94ff',
+  succeeded: '#4ade80',
+  failed: '#ff7a7a',
+  skipped: '#6b7280',
 };
 
 export const STEP_STATUS_LABEL: Record<StepDisplayStatus, string> = {

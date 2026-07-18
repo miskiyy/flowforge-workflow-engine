@@ -57,8 +57,9 @@ export function LoginPage() {
             width: 32,
             height: 32,
             borderRadius: 8,
-            background: 'var(--accent)',
-            color: '#fff',
+            background: 'var(--accent-subtle)',
+            border: '1px solid var(--accent-subtle-border)',
+            color: 'var(--accent)',
           }}
         >
           <IconWorkflow width={19} height={19} />
@@ -95,8 +96,8 @@ export function LoginPage() {
             data-testid="login-error"
             style={{
               color: 'var(--status-failed)',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
+              background: 'rgba(255, 122, 122, 0.12)',
+              border: '1px solid rgba(255, 122, 122, 0.3)',
               borderRadius: 'var(--radius)',
               padding: 'var(--space-2) var(--space-3)',
               margin: '0 0 var(--space-4)',

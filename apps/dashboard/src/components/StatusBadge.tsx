@@ -13,7 +13,8 @@ export function StatusBadge({ status }: { status: StepDisplayStatus }) {
         padding: '2px 8px',
         borderRadius: 999,
         fontSize: 12,
-        color: '#fff',
+        fontWeight: 600,
+        color: 'var(--bg)',
         backgroundColor: STEP_STATUS_COLOR[status],
       }}
     >

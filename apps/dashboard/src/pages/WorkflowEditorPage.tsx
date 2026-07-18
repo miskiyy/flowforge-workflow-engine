@@ -35,6 +35,7 @@ export function WorkflowEditorPage() {
   const updateWorkflow = useUpdateWorkflow(id ?? '');
 
   const [name, setName] = useState('');
+  const [cronExpression, setCronExpression] = useState('');
   const [dagText, setDagText] = useState(NEW_DAG_SCAFFOLD);
   const [baseVersionId, setBaseVersionId] = useState<string | undefined>(undefined);
   const [dirty, setDirty] = useState(false);
@@ -46,6 +47,7 @@ export function WorkflowEditorPage() {
   useEffect(() => {
     if (existing?.version && !dirty) {
       setName(existing.workflow.name);
+      setCronExpression(existing.workflow.cronExpression ?? '');
       setDagText(JSON.stringify(existing.version.dag, null, 2));
       setBaseVersionId(existing.version.id);
     }
@@ -81,16 +83,23 @@ export function WorkflowEditorPage() {
       return;
     }
 
+    const trimmedCron = cronExpression.trim();
+
     try {
       if (isEdit) {
         const result = await updateWorkflow.mutateAsync({
           name,
           dag: dag as never,
+          cronExpression: trimmedCron === '' ? null : trimmedCron,
           ...(baseVersionId !== undefined ? { baseVersionId } : {}),
         });
         navigate(`/workflows/${result.workflow.id}`);
       } else {
-        const result = await createWorkflow.mutateAsync({ name, dag: dag as never });
+        const result = await createWorkflow.mutateAsync({
+          name,
+          dag: dag as never,
+          ...(trimmedCron === '' ? {} : { cronExpression: trimmedCron }),
+        });
         navigate(`/workflows/${result.workflow.id}`);
       }
     } catch (err) {
@@ -115,6 +124,7 @@ export function WorkflowEditorPage() {
     const { data } = await refetch();
     if (data?.version) {
       setName(data.workflow.name);
+      setCronExpression(data.workflow.cronExpression ?? '');
       setDagText(JSON.stringify(data.version.dag, null, 2));
       setBaseVersionId(data.version.id);
     }
@@ -166,6 +176,24 @@ export function WorkflowEditorPage() {
               setDirty(true);
             }}
           />
+        </div>
+
+        <div style={{ marginBottom: 'var(--space-3)' }}>
+          <label htmlFor="workflow-cron">Schedule (cron expression, optional)</label>
+          <br />
+          <input
+            id="workflow-cron"
+            placeholder="0 * * * * (minute hour day-of-month month day-of-week)"
+            style={{ fontFamily: 'var(--font-mono)', width: '100%', maxWidth: 420 }}
+            value={cronExpression}
+            onChange={(event) => {
+              setCronExpression(event.target.value);
+              setDirty(true);
+            }}
+          />
+          <p style={{ color: 'var(--ink-mut)', fontSize: 'var(--text-xs)', margin: 'var(--space-1) 0 0' }}>
+            Leave blank to run only on manual trigger or webhook. Evaluated in UTC every minute.
+          </p>
         </div>
 
         {/* AI-first: the prompt leads; raw JSON is the escape hatch below (frontend-ux-revision.md R3/R5). */}

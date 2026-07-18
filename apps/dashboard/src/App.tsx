@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Link, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { createQueryClient } from './api/client.js';
 import { AppShell } from './components/AppShell.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
@@ -8,7 +8,9 @@ import { ToastProvider } from './components/Toast.js';
 import { AuthProvider } from './auth/AuthProvider.js';
 import { ProtectedRoute } from './auth/ProtectedRoute.js';
 import { useAuth } from './auth/useAuth.js';
+import { DocumentationPage } from './pages/DocumentationPage.js';
 import { HealthPage } from './pages/HealthPage.js';
+import { LandingPage } from './pages/LandingPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { OverviewPage } from './pages/OverviewPage.js';
 import { RunDetailPage } from './pages/RunDetailPage.js';
@@ -24,6 +26,12 @@ function RunRoute() {
   const { token } = useAuth();
   if (!id || !token) return null;
   return <RunDetailPage apiUrl={API_URL} runId={id} token={token} />;
+}
+
+/** Logged-out visitors see the marketing page; authenticated users land in the dashboard. */
+function RootRoute() {
+  const { token } = useAuth();
+  return token ? <Navigate to="/overview" replace /> : <LandingPage />;
 }
 
 function NotFoundPage() {
@@ -57,10 +65,12 @@ function AppRoutes() {
   return (
     <ErrorBoundary key={location.pathname}>
       <Routes>
+        <Route path="/" element={<RootRoute />} />
+        <Route path="/docs" element={<DocumentationPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
-            <Route index element={<OverviewPage />} />
+            <Route path="overview" element={<OverviewPage />} />
             <Route path="workflows" element={<WorkflowsPage />} />
             <Route path="workflows/new" element={<WorkflowEditorPage />} />
             <Route path="workflows/:id" element={<WorkflowDetailPage />} />

@@ -12,10 +12,20 @@ afterEach(() => {
   localStorage.clear();
 });
 
+function statsResponse() {
+  return jsonResponse({
+    activeRuns: 3,
+    last24h: { total: 10, succeeded: 8, failed: 2, successRate: 0.8, avgDurationMs: 1500 },
+  });
+}
+
 describe('OverviewPage', () => {
   it('shows the three primary actions', async () => {
     seedAuth('editor');
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ items: [], nextCursor: null })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => Promise.resolve(url.includes('/stats') ? statsResponse() : jsonResponse({ items: [], nextCursor: null }))),
+    );
 
     renderWithProviders(<OverviewPage />);
 
@@ -30,6 +40,7 @@ describe('OverviewPage', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string) => {
+        if (url.includes('/stats')) return Promise.resolve(statsResponse());
         if (url.includes('/runs')) {
           return Promise.resolve(
             jsonResponse({
@@ -59,5 +70,20 @@ describe('OverviewPage', () => {
     await waitFor(() => expect(screen.getByTestId('recent-runs')).toBeInTheDocument());
     expect(screen.getByText('hello-http')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/runs/run-1');
+  });
+
+  it('shows fleet stats from GET /stats', async () => {
+    seedAuth('editor');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => Promise.resolve(url.includes('/stats') ? statsResponse() : jsonResponse({ items: [], nextCursor: null }))),
+    );
+
+    renderWithProviders(<OverviewPage />);
+
+    await waitFor(() => expect(screen.getByTestId('fleet-stats')).toBeInTheDocument());
+    expect(screen.getByText('Active runs').nextSibling).toHaveTextContent('3');
+    expect(screen.getByText('80%')).toBeInTheDocument();
+    expect(screen.getByText('1.5s')).toBeInTheDocument();
   });
 });
