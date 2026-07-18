@@ -4,6 +4,7 @@ import * as ajvFormats from 'ajv-formats';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { registerAiRoutes } from './ai/routes.js';
 import type { DagProposer } from './ai/provider.js';
+import { registerApiKeyRoutes } from './api-keys/routes.js';
 import { registerAuth } from './auth/plugin.js';
 import { registerAuthRoutes } from './auth/routes.js';
 import { registerExecutionRoutes } from './execution/routes.js';
@@ -42,6 +43,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   registerErrorHandler(app);
   registerAuth(app);
   registerAuthRoutes(app);
+  registerApiKeyRoutes(app);
   registerWorkflowRoutes(app);
   registerExecutionRoutes(app);
   registerGraphqlRoutes(app);

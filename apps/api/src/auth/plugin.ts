@@ -1,8 +1,14 @@
 import fastifyJwt from '@fastify/jwt';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { authenticateApiKey } from '../api-keys/repository.js';
 import { env } from '../config.js';
 import type { UserRole } from '../db/schema.js';
 import { ForbiddenError, UnauthorizedError } from '../lib/errors.js';
+
+// Machine tokens are prefixed so `authenticate` can route them to the API-key
+// path instead of jwtVerify. JWTs never start with this (they're base64url
+// header.payload.signature), so the branch is unambiguous.
+const API_KEY_BEARER_PREFIX = `Bearer ${'ff_'}`;
 
 export interface AuthUser {
   tenantId: string;
@@ -30,9 +36,11 @@ declare module 'fastify' {
 
 /**
  * Registers JWT support plus three centrally-enforced preHandlers so route
- * files never hand-roll auth checks: `authenticate` verifies the token and
- * derives tenantId/role server-side (never trusted from the request body or
- * params), `requireWrite` blocks the viewer role from any non-GET method,
+ * files never hand-roll auth checks: `authenticate` verifies the credential
+ * (a user JWT *or* an `ff_`-prefixed per-tenant API key) and derives
+ * tenantId/role server-side (never trusted from the request body or
+ * params) — so every existing JWT-guarded route accepts an API key for free,
+ * the single door we designed for. `requireWrite` blocks the viewer role from any non-GET method,
  * and `requireAdmin` blocks editor and viewer alike from admin-only actions
  * (destructive or credential-rotating ones — see workflows/routes.ts for
  * which routes use it). `requireAdmin` always implies `requireWrite`'s
@@ -45,6 +53,14 @@ export function registerAuth(app: FastifyInstance): void {
   });
 
   app.decorate('authenticate', async (request: FastifyRequest) => {
+    const header = request.headers.authorization;
+    if (header?.startsWith(API_KEY_BEARER_PREFIX)) {
+      const authUser = await authenticateApiKey(header.slice('Bearer '.length));
+      if (!authUser) throw new UnauthorizedError('Invalid or revoked API key');
+      request.authUser = authUser;
+      return;
+    }
+
     try {
       await request.jwtVerify();
     } catch {

@@ -16,6 +16,9 @@ function stubAuthAndWorkflowsFetch() {
       if (url.includes('/auth/login')) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ accessToken: fakeJwt(CLAIMS) }) });
       }
+      if (url.includes('/me/tenants')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ tenants: [] }) });
+      }
       if (url.includes('/runs') || url.includes('/workflows')) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], nextCursor: null }) });
       }

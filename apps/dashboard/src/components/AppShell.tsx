@@ -2,12 +2,14 @@ import type { CSSProperties } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
 import { IconHealth, IconHome, IconLogout, IconRuns, IconWorkflow } from './icons.js';
+import { TenantSwitcher } from './TenantSwitcher.js';
 
 const NAV_ITEMS = [
   { to: '/', end: true, label: 'Home', icon: IconHome },
   { to: '/workflows', end: false, label: 'Workflows', icon: IconWorkflow },
   { to: '/runs', end: false, label: 'Runs', icon: IconRuns },
   { to: '/health', end: false, label: 'Health', icon: IconHealth },
+  { to: '/settings', end: false, label: 'Settings', icon: IconWorkflow },
 ];
 
 const SIDEBAR_WIDTH = 240;
@@ -86,6 +88,7 @@ export function AppShell() {
           ))}
         </nav>
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <TenantSwitcher />
           <div style={{ padding: '0 var(--space-2)', lineHeight: 1.3 }}>
             <div data-testid="user-email" style={{ fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.email}

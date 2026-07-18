@@ -2,6 +2,7 @@ import type { WorkflowDagDefinition } from '@flowforge/shared-types';
 import { and, eq } from 'drizzle-orm';
 import { fileURLToPath } from 'node:url';
 import { hashPassword } from '../lib/password.js';
+import { ensureMembership } from '../memberships/repository.js';
 import { createWorkflow } from '../workflows/repository.js';
 import { db, pool } from './client.js';
 import { USER_ROLES, tenants, users, workflowDefinitions, type UserRole } from './schema.js';
@@ -32,6 +33,7 @@ async function findOrCreateUser(tenantId: string, email: string, role: UserRole)
   const passwordHash = await hashPassword(SEED_PASSWORD);
   const [created] = await db.insert(users).values({ tenantId, email, passwordHash, role }).returning();
   if (!created) throw new Error(`failed to create user: ${email}`);
+  await ensureMembership(created.id, tenantId, role);
   return created;
 }
 
@@ -86,15 +88,26 @@ export async function seedExampleWorkflows(tenantId: string, userId: string): Pr
 
 /** Idempotent: safe to run repeatedly, only inserts rows that don't already exist. */
 export async function seed(): Promise<void> {
+  const tenantIds: string[] = [];
+  let firstTenantAdminId: string | undefined;
+
   for (const [index, tenant] of SEED_TENANTS.entries()) {
     const { id: tenantId } = await findOrCreateTenant(tenant.name);
+    tenantIds.push(tenantId);
     let adminUserId: string | undefined;
     for (const role of USER_ROLES) {
       const user = await findOrCreateUser(tenantId, `${role}@${tenant.slug}.dev`, role);
       if (role === 'admin') adminUserId = user.id;
     }
+    if (index === 0) firstTenantAdminId = adminUserId;
     // Only the first tenant gets example workflows; the second stays empty.
     if (index === 0 && adminUserId) await seedExampleWorkflows(tenantId, adminUserId);
+  }
+
+  // Give the first tenant's admin a membership in the second tenant too, so the
+  // org switcher has something to switch to out of the box (demo affordance).
+  if (firstTenantAdminId && tenantIds[1]) {
+    await ensureMembership(firstTenantAdminId, tenantIds[1], 'admin');
   }
 }
 

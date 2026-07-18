@@ -15,6 +15,7 @@ import { LoginPage } from './pages/LoginPage.js';
 import { OverviewPage } from './pages/OverviewPage.js';
 import { RunDetailPage } from './pages/RunDetailPage.js';
 import { RunsPage } from './pages/RunsPage.js';
+import { SettingsPage } from './pages/SettingsPage.js';
 import { WorkflowDetailPage } from './pages/WorkflowDetailPage.js';
 import { WorkflowEditorPage } from './pages/WorkflowEditorPage.js';
 import { WorkflowsPage } from './pages/WorkflowsPage.js';
@@ -77,6 +78,7 @@ function AppRoutes() {
             <Route path="workflows/:id/edit" element={<WorkflowEditorPage />} />
             <Route path="runs" element={<RunsPage />} />
             <Route path="runs/:id" element={<RunRoute />} />
+            <Route path="settings" element={<SettingsPage />} />
             <Route path="health" element={<HealthPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

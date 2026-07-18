@@ -24,6 +24,8 @@ export interface AuthContextValue {
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Replaces the active token (e.g. after switching tenant) — email is preserved, tenant/role are re-read from the new token's claims. */
+  applyToken: (token: string) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -105,7 +107,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ token: null, user: null });
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => ({ token: state.token, user: state.user, login, logout }), [state, login, logout]);
+  const applyToken = useCallback((token: string) => {
+    const claims = decodeClaims(token);
+    if (!claims) return;
+    setState((prev) => {
+      const email = prev.user?.email ?? '';
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, email } satisfies StoredAuth));
+      return { token, user: { ...claims, email } };
+    });
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ token: state.token, user: state.user, login, logout, applyToken }),
+    [state, login, logout, applyToken],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
